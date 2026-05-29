@@ -31,11 +31,11 @@
             min-height: 100vh;
             line-height: 1.45;
         }
-        .app-wrap { padding: clamp(1rem, 3vw, 2rem) clamp(1rem, 4vw, 3rem); max-width: 920px; margin: 0 auto; }
+        .app-wrap { padding: clamp(1rem, 3vw, 2rem) clamp(1rem, 4vw, 3rem); max-width: 1000px; margin: 0 auto; }
 
         header {
-            display: flex; flex-wrap: wrap; gap: 1rem;
-            justify-content: space-between; align-items: flex-end;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            gap: 1rem;
             padding-bottom: 1.25rem; margin-bottom: 1.5rem;
             border-bottom: 1px solid var(--border);
         }
@@ -613,7 +613,7 @@
         }
 
         .kookcast-title {
-            font-size: clamp(2rem, 6vw, 3.2rem);
+            font-size: clamp(2.8rem, 8vw, 4.5rem);
             font-weight: 800;
             letter-spacing: -0.03em;
             margin: 0;
@@ -743,6 +743,68 @@
         .guide-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
         .guide-btn.primary:hover { filter: brightness(1.08); }
         .guide-page-indicator { font-size: 0.75rem; color: var(--muted); }
+
+        /* Chart loading state */
+        .chart-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 0.5rem;
+            color: var(--muted);
+            font-size: 0.78rem;
+        }
+        .chart-spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Chart modal */
+        .chart-modal {
+            position: fixed; inset: 0; z-index: 9990;
+            background: rgba(20, 30, 60, 0.6);
+            backdrop-filter: blur(6px);
+            display: grid; place-items: center;
+            padding: 1rem;
+        }
+        .chart-modal.hidden { display: none; }
+        .chart-modal-inner {
+            width: min(900px, 100%);
+            max-height: 90vh;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: 0 24px 80px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+        }
+        .chart-modal-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.85rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .chart-modal-body {
+            flex: 1; overflow: auto;
+            padding: 1.25rem;
+            min-height: 300px;
+        }
+        .chart-modal-body svg { width: 100% !important; height: auto !important; min-height: 280px; }
+
+        /* Chart container hover & cursor */
+        .wave-bar-container:hover, .tide-container:hover, .buoy-chart-container:hover {
+            border-color: var(--accent);
+            transition: border-color 0.2s;
+        }
+        .wave-bar-container, .tide-container, .buoy-chart-container {
+            cursor: crosshair;
+        }
     </style>
 </head>
 <body>
@@ -761,7 +823,7 @@
     <header>
         <div>
             <h1 class="kookcast-title">KOOKCAST</h1>
-            <p class="tagline">Your hyper-local, possibly-accurate, definitely-kooky swell oracle for Bamfield's gnarliest west coast breaks. Powered by math, vibes, and locals who actually paddle out.</p>
+            <p class="tagline">Bamfield's west coast swell oracle.</p>
         </div>
         <div class="controls">
             <label class="sr-only" for="break-selector">Surf break</label>
@@ -868,6 +930,15 @@
         </div>
     </div>
     <div id="chart-tooltip" style="display:none;position:fixed;z-index:7000;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem;font-size:0.78rem;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,0.12);max-width:200px;line-height:1.5;"></div>
+    <div id="chart-modal" class="chart-modal hidden" role="dialog" aria-modal="true">
+        <div class="chart-modal-inner">
+            <div class="chart-modal-header">
+                <span id="chart-modal-title" style="font-weight:700;font-size:0.95rem;"></span>
+                <button type="button" id="chart-modal-close" style="background:none;border:none;cursor:pointer;font-size:1.3rem;color:var(--muted);padding:0.25rem 0.5rem;border-radius:6px;" aria-label="Close">✕</button>
+            </div>
+            <div id="chart-modal-body" class="chart-modal-body"></div>
+        </div>
+    </div>
     <div id="guide-overlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
         <div class="guide-card">
             <div class="guide-header">
@@ -995,6 +1066,39 @@
         const h = ((hour24 % 24) + 24) % 24;
         const h12 = h % 12 || 12;
         return h12 + (h < 12 ? ' AM' : ' PM');
+    }
+
+    function buildInRowPrefSelect(currentPref) {
+        const opts = [
+            ['highest','Highest surf'],['average','Day average'],['any','Any tide (peak)'],
+            ['low_push','Low on push ↓'],['low','At low tide'],['high_push','High on push ↑'],
+            ['high','At high tide'],['incoming','Incoming (flood)'],['outgoing','Outgoing (ebb)']
+        ];
+        const options = opts.map(([v,l]) => '<option value="' + v + '"' + (v===currentPref?' selected':'') + '>' + l + '</option>').join('');
+        return '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.65rem;padding-bottom:0.65rem;border-bottom:1px solid var(--border);">'
+            + '<label style="font-size:0.7rem;color:var(--muted);white-space:nowrap;font-weight:600;">Reading</label>'
+            + '<select class="inline-tide-pref" style="font-family:inherit;font-size:0.72rem;font-weight:600;padding:0.3rem 1.4rem 0.3rem 0.5rem;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--text);appearance:none;cursor:pointer;flex:1;">' + options + '</select>'
+            + '</div>';
+    }
+
+    function initChartModal() {
+        const modal = $('chart-modal');
+        const modalBody = $('chart-modal-body');
+        const modalTitle = $('chart-modal-title');
+        $('chart-modal-close').onclick = () => modal.classList.add('hidden');
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.classList.add('hidden'); });
+
+        document.addEventListener('click', (e) => {
+            const container = e.target.closest('.wave-bar-container, .tide-container, .buoy-chart-container');
+            if (!container) return;
+            const svg = container.querySelector('svg');
+            if (!svg) return;
+            const head = container.closest('.chart-block') && container.closest('.chart-block').querySelector('h3');
+            modalTitle.textContent = head ? head.textContent : 'Chart';
+            modalBody.innerHTML = svg.outerHTML;
+            modal.classList.remove('hidden');
+        });
     }
 
     function pacificDayHourLabels() {
@@ -2085,6 +2189,10 @@
             grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#9ca3af" font-size="7" text-anchor="end">' + val.toFixed(1) + '</text>';
         });
         grid += '<text x="' + (padL - 4) + '" y="14" fill="#6b7280" font-size="7" text-anchor="end">' + lenU + '</text>';
+        [6, 12, 18].forEach(function(hv) {
+            const gx = padL + hv * groupW + groupW * 0.5;
+            grid += '<line x1="' + gx.toFixed(1) + '" y1="22" x2="' + gx.toFixed(1) + '" y2="' + bottom + '" stroke="#e2e6ed" stroke-width="1" opacity="0.8"/>';
+        });
         let bars = '';
         const tickHours = [0, 6, 12, 18];
         hours.forEach((hr, hi) => {
@@ -2094,10 +2202,11 @@
             const bh = (v / maxDisp) * chartH;
             bars += '<rect x="' + x0.toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#0891b2" rx="1" opacity="0.9"/>';
             if (tickHours.indexOf(hr.h) >= 0) {
-                bars += '<text x="' + (x0 + barW / 2).toFixed(1) + '" y="' + (h - 6) + '" fill="#6b7280" font-size="7" text-anchor="middle">' + formatHourAmPm(hr.h) + '</text>';
+                const tickX = padL + hr.h * groupW;
+                bars += '<text x="' + tickX.toFixed(1) + '" y="' + (h - 6) + '" fill="#6b7280" font-size="7" text-anchor="middle">' + formatHourAmPm(hr.h) + '</text>';
             }
         });
-        const xEnd = padL + 24 * groupW - groupW * 0.2;
+        const xEnd = padL + 24 * groupW;
         bars += '<text x="' + xEnd.toFixed(1) + '" y="' + (h - 6) + '" fill="#6b7280" font-size="7" text-anchor="middle">12 AM</text>';
         return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">' + grid + bars + '</svg>';
     }
@@ -2699,6 +2808,7 @@
         $('break-selector').onchange = (e) => updateForecast(e.target.value);
         updateForecast('pachena_park');
         initGuide();
+        initChartModal();
     }
 
     async function updateForecast(key) {
@@ -3003,9 +3113,17 @@
 
             const details = document.createElement('div');
             details.className = 'details';
+            const tideContent = (tideWlp && tideWlp.length) || (tideHilo && tideHilo.length)
+                ? drawTideSVG(tideChartSeries(tideWlp, dayHilos), dayHilos, rx, dayStr, units)
+                : '<div class="chart-loading"><div class="chart-spinner"></div><span>Loading tide data…</span></div>';
+            const buoyContent = (buoyData[LA_PEROUSE_BUOY] || []).length
+                ? drawBuoyWaveSVG(dayStr, rx, units)
+                : '<div class="chart-loading"><div class="chart-spinner"></div><span>Loading buoy data…</span></div>';
+
             details.innerHTML = `
                 <div>
                     <h3>Ocean &amp; model</h3>
+                    ${buildInRowPrefSelect(tidePref)}
                     <div class="stat-line"><span>Your model (pre-peer)</span><span>${formatSurfFt(surfBeforePeer, 2, units)}</span></div>
                     ${peerExplain}
                     ${tidePrefLabel}
@@ -3028,12 +3146,12 @@
                     <div class="chart-block">
                         <div class="chart-head"><h3 style="margin:0;border:0;padding:0;">La Perouse buoy · 24h</h3>
                         <span class="chart-legend"><i class="lg-buoy-lp"></i> observed sea height (NDBC 46206)</span></div>
-                        <div class="buoy-chart-container">${drawBuoyWaveSVG(dayStr, rx, units)}</div>
+                        <div class="buoy-chart-container">${buoyContent}</div>
                     </div>
                     <div class="chart-block">
                         <div class="chart-head"><h3 style="margin:0;border:0;padding:0;">Tide · 24h</h3>
                         <span class="chart-legend">12 AM–12 AM Pacific</span></div>
-                        <div class="tide-container">${drawTideSVG(tideChartSeries(tideWlp, dayHilos), dayHilos, rx, dayStr, units)}</div>
+                        <div class="tide-container">${tideContent}</div>
                         <div class="tide-meta"><span>12 AM – 12 AM · H/L markers</span><span>Blue dashed = now</span></div>
                     </div>
                     <div class="tide-pills">${hiloPills}</div>
@@ -3059,6 +3177,20 @@
                 }
             });
         });
+
+        // Attach inline tide-pref delegate once
+        const fw = $('forecast-wrapper');
+        if (!fw.dataset.prefDelegate) {
+            fw.dataset.prefDelegate = '1';
+            fw.addEventListener('change', (e) => {
+                if (!e.target.classList.contains('inline-tide-pref')) return;
+                const newPref = e.target.value;
+                setTidePref(newPref);
+                const tidePrefSel = $('tide-pref');
+                if (tidePrefSel) tidePrefSel.value = newPref;
+                if (marineData) render($('break-selector').value, breaks[$('break-selector').value]);
+            });
+        }
 
         syncBreakMarkerPositions();
         focusBreakOnMap(key, b, mapSwellDirForFocus, mapWindDirForFocus);
