@@ -1,0 +1,2680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bamfield Surf Report</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0e0f12;
+            --surface: #16181e;
+            --surface2: #1c1f28;
+            --text: #f2f3f5;
+            --muted: #8b93a5;
+            --border: #2a2f3a;
+            --accent: #3d9dff;
+            --swell: #7c5cff;
+            --tide: #2ee6d6;
+            --warn: #ffb020;
+            --radius: 12px;
+        }
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            font-family: 'DM Sans', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            min-height: 100vh;
+            line-height: 1.45;
+        }
+        .app-wrap { padding: clamp(1rem, 3vw, 2rem) clamp(1rem, 4vw, 3rem); max-width: 920px; margin: 0 auto; }
+
+        header {
+            display: flex; flex-wrap: wrap; gap: 1rem;
+            justify-content: space-between; align-items: flex-end;
+            padding-bottom: 1.25rem; margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        h1 {
+            font-size: clamp(1.75rem, 4vw, 2.25rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0;
+            line-height: 1.05;
+        }
+        .tagline { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; max-width: 32rem; }
+
+        .sr-only {
+            position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+            overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .controls select {
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 0.65rem 2rem 0.65rem 0.75rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b93a5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 0.65rem center;
+            background-size: 12px;
+            color: var(--text);
+            appearance: none;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        #break-selector { min-width: 220px; }
+        #unit-toggle {
+            min-width: 0;
+            width: 4.5rem;
+            padding: 0.65rem 1.65rem 0.65rem 0.55rem;
+        }
+        .controls select:hover, .controls select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(61, 157, 255, 0.15);
+        }
+
+        .map-wrap {
+            position: relative;
+            margin-bottom: 1.25rem;
+        }
+        #map {
+            height: 320px;
+            width: 100%;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            filter: saturate(0.85) contrast(1.05);
+        }
+        .map-arrow-icon { background: none; border: none; pointer-events: none; }
+        .map-dir-arrow { display: grid; place-items: center; width: 36px; height: 36px; opacity: 0.9; }
+        .map-swell-arrow span {
+            display: block; width: 0; height: 0;
+            border-left: 6px solid transparent; border-right: 6px solid transparent;
+            border-bottom: 15px solid var(--swell);
+        }
+        .map-wind-arrow span {
+            display: block; width: 0; height: 0;
+            border-left: 5px solid transparent; border-right: 5px solid transparent;
+            border-bottom: 12px solid var(--accent);
+        }
+        .map-legend {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            z-index: 500;
+            max-width: 240px;
+            padding: 0.55rem 0.65rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: rgba(10, 11, 16, 0.62);
+            backdrop-filter: blur(6px);
+            font-size: 0.68rem;
+            color: var(--muted);
+            line-height: 1.45;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+        }
+        .map-legend-title {
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.62rem;
+            color: var(--text);
+            margin-bottom: 0.35rem;
+        }
+        .map-legend-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.45rem;
+            margin-top: 0.3rem;
+        }
+        .map-legend-swatch {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            background: rgba(18, 21, 28, 0.9);
+            border: 1px solid var(--border);
+            display: grid;
+            place-items: center;
+        }
+        .map-legend-swatch .mini-flow {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            opacity: 0.85;
+        }
+        .map-legend-swatch .mini-flow.swell {
+            background: radial-gradient(circle at 30% 50%, transparent 20%, var(--swell) 45%, transparent 70%);
+            animation: miniSwellDrift 1.8s ease-in-out infinite;
+        }
+        .map-legend-swatch .mini-flow.wind {
+            background: radial-gradient(circle at 70% 50%, transparent 20%, var(--accent) 50%, transparent 72%);
+            animation: miniWindDrift 1.2s linear infinite;
+        }
+        @keyframes miniSwellDrift {
+            0%, 100% { transform: translateX(-2px); opacity: 0.65; }
+            50% { transform: translateX(3px); opacity: 1; }
+        }
+        @keyframes miniWindDrift {
+            0% { transform: translateX(3px); }
+            100% { transform: translateX(-3px); }
+        }
+        .map-legend-toggle {
+            margin-top: 0.4rem;
+            padding: 0;
+            border: none;
+            background: none;
+            color: var(--accent);
+            font-size: 0.65rem;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .map-legend.collapsed .map-legend-body { display: none; }
+        .map-legend.collapsed .map-legend-toggle::before { content: 'Show guide'; }
+        .map-legend:not(.collapsed) .map-legend-toggle::before { content: 'Hide guide'; }
+        .break-pin { background: none; border: none; }
+        .break-pin .pin-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #8b93a5; border: 2px solid #fff;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.45);
+            transition: transform 0.25s ease, background 0.25s ease;
+        }
+        .break-pin.active .pin-dot {
+            background: var(--accent);
+            transform: scale(1.35);
+            box-shadow: 0 0 0 4px rgba(61, 157, 255, 0.25);
+        }
+        .buoy-pin { background: none; border: none; }
+        .buoy-pin .buoy-diamond {
+            width: 12px; height: 12px;
+            background: var(--tide);
+            border: 2px solid #fff;
+            transform: rotate(45deg);
+            box-shadow: 0 0 8px rgba(46, 230, 214, 0.5);
+        }
+        .buoy-chart-container {
+            position: relative;
+            height: 140px;
+            width: 100%;
+            background: linear-gradient(180deg, #12151c 0%, #0a0b10 100%);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .chart-block .chart-legend .lg-buoy-lp { background: #2ee6d6; }
+        .chart-block .chart-legend .lg-buoy-hb { background: var(--warn); }
+        .chart-block {
+            margin-bottom: 0.85rem;
+        }
+        .chart-block .chart-head {
+            display: flex; justify-content: space-between; align-items: baseline;
+            margin-bottom: 0.35rem;
+        }
+        .chart-block .chart-legend {
+            font-size: 0.62rem; color: var(--muted);
+        }
+        .chart-block .chart-legend i {
+            display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+            margin-right: 0.2rem; vertical-align: middle;
+        }
+        .chart-block .chart-legend .lg-swell { background: var(--swell); }
+        .chart-block .chart-legend .lg-predicted { background: var(--accent); }
+        .wave-bar-container {
+            position: relative;
+            height: 192px;
+            width: 100%;
+            background: linear-gradient(180deg, #12151c 0%, #0a0b10 100%);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .tide-container {
+            position: relative;
+            height: 148px;
+            width: 100%;
+            background: linear-gradient(180deg, #12151c 0%, #0a0b10 100%);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .weather-card {
+            display: flex; gap: 0.75rem; align-items: flex-start;
+            padding: 0.65rem 0.75rem;
+            margin-top: 0.65rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .weather-card .wx-icon {
+            font-size: 1.75rem; line-height: 1;
+            width: 2.25rem; text-align: center;
+        }
+        .weather-card .wx-title { font-weight: 700; font-size: 0.85rem; margin: 0 0 0.2rem; }
+        .weather-card .wx-lines { font-size: 0.74rem; color: var(--muted); line-height: 1.45; }
+        .peer-strip { position: relative; }
+        .peer-strip.peer-submitted {
+            border-color: rgba(46, 229, 157, 0.55);
+            box-shadow: 0 0 0 1px rgba(46, 229, 157, 0.2);
+        }
+        .peer-success-toast {
+            position: absolute; inset: 0;
+            display: grid; place-items: center;
+            background: rgba(14, 15, 18, 0.72);
+            border-radius: 8px;
+            z-index: 2;
+            animation: peerToastIn 0.35s ease;
+            pointer-events: none;
+        }
+        .peer-success-toast .inner {
+            display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+            color: #62e899; font-weight: 800; font-size: 0.9rem;
+        }
+        .peer-success-toast .check {
+            width: 44px; height: 44px; border-radius: 50%;
+            border: 2px solid #62e899;
+            display: grid; place-items: center; font-size: 1.4rem;
+            background: rgba(46, 229, 157, 0.12);
+        }
+        @keyframes peerToastIn {
+            from { opacity: 0; transform: scale(0.96); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .status-bar {
+            display: flex; flex-wrap: wrap; gap: 0.75rem;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-bottom: 1rem;
+        }
+        .pill {
+            display: inline-flex; align-items: center; gap: 0.35rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 999px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+        }
+        .pill strong { color: var(--text); font-weight: 600; }
+
+        .forecast-list { display: flex; flex-direction: column; gap: 0; }
+
+        button.day-row {
+            display: grid;
+            grid-template-columns: 6.5rem 1fr auto 2rem;
+            gap: 0.5rem 1rem;
+            align-items: center;
+            padding: 1rem 1rem;
+            margin: 0;
+            width: 100%;
+            box-sizing: border-box;
+            font: inherit;
+            color: inherit;
+            text-align: left;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-bottom: none;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+        .forecast-list > button.day-row:first-of-type { border-radius: var(--radius) var(--radius) 0 0; }
+        .forecast-list > button.day-row:last-of-type { border-radius: 0 0 var(--radius) var(--radius); border-bottom: 1px solid var(--border); }
+
+        button.day-row:hover { background: var(--surface2); }
+        button.day-row.open { background: var(--surface2); }
+        .date-col { font-weight: 700; font-size: 0.85rem; letter-spacing: 0.02em; }
+        .surf-col { font-size: 1.35rem; font-weight: 800; color: var(--accent); letter-spacing: -0.02em; }
+        .surf-sub { display: block; font-size: 0.7rem; font-weight: 500; color: var(--muted); margin-top: 0.15rem; }
+        .energy-col { font-size: 0.75rem; color: var(--muted); text-align: right; }
+        .chev {
+            width: 28px; height: 28px;
+            display: grid; place-items: center;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.04);
+            font-size: 1.1rem;
+            font-weight: 300;
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .day-row.open .chev { transform: rotate(45deg); background: rgba(61, 157, 255, 0.15); color: var(--accent); }
+
+        .details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            padding: 0 1rem;
+            border: 1px solid var(--border);
+            border-top: none;
+            background: #111318;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, padding 0.35s ease;
+        }
+        .details.visible {
+            max-height: 1600px;
+            opacity: 1;
+            padding: 1.25rem 1rem;
+        }
+        .forecast-list > .details + button.day-row { border-top: 1px solid var(--border); }
+
+        .details h3 {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            margin: 0 0 0.75rem;
+            padding-bottom: 0.4rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .stat-line {
+            display: flex; justify-content: space-between; gap: 1rem;
+            font-size: 0.82rem;
+            padding: 0.35rem 0;
+            border-bottom: 1px dashed rgba(255,255,255,0.06);
+        }
+        .stat-line span:last-child { color: var(--text); font-weight: 600; text-align: right; }
+
+        .quality-note {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin: 0.75rem 0 0;
+            padding: 0.65rem;
+            background: rgba(124, 92, 255, 0.06);
+            border-radius: 8px;
+            border-left: 3px solid var(--swell);
+        }
+
+        .tide-wrap { margin-top: 0.25rem; }
+        .tide-meta {
+            display: flex; justify-content: space-between;
+            font-size: 0.65rem;
+            color: var(--muted);
+            margin-top: 0.4rem;
+        }
+        .tide-pills {
+            display: flex; flex-wrap: wrap;
+            gap: 0.35rem;
+            margin-top: 0.65rem;
+            font-size: 0.68rem;
+        }
+        .tide-pills span {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            color: var(--muted);
+        }
+        .tide-pills .hi { border-color: rgba(46, 230, 214, 0.35); color: var(--tide); }
+        .tide-pills .lo { border-color: rgba(139, 147, 165, 0.4); }
+
+        .weather-day {
+            font-size: 0.78rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+        }
+        .weather-day strong { color: var(--text); }
+
+        button.day-row .y-badge {
+            font-size: 0.62rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--warn);
+            margin-top: 0.35rem;
+        }
+
+        .peer-strip {
+            margin-top: 0.65rem;
+            padding: 0.65rem 0.7rem;
+            border-radius: 8px;
+            border: 1px solid rgba(124, 92, 255, 0.28);
+            background: rgba(124, 92, 255, 0.06);
+        }
+        .peer-strip .peer-title { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--swell); margin-bottom: 0.35rem; }
+        .peer-strip .peer-sub { font-size: 0.74rem; color: var(--muted); margin-bottom: 0.5rem; line-height: 1.35; }
+        .peer-strip .peer-buttons { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+        .peer-strip button.peer-btn {
+            font-family: inherit; font-weight: 600; font-size: 0.72rem;
+            padding: 0.35rem 0.55rem; border-radius: 6px; cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--surface); color: var(--text);
+        }
+        .peer-strip button.peer-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .peer-strip button.peer-btn.confirm { border-color: rgba(46, 229, 157, 0.45); color: #62e899; background: rgba(46, 229, 157, 0.08); }
+        .peer-custom {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem;
+            margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px dashed rgba(255,255,255,0.06);
+        }
+        .peer-custom label { font-size: 0.72rem; color: var(--muted); }
+        .peer-custom input.peer-observed-input {
+            width: 4.2rem; padding: 0.28rem 0.4rem; border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.25);
+            color: var(--text); font-size: 0.78rem;
+        }
+        .peer-custom input.peer-observed-input:focus { outline: none; border-color: var(--accent); }
+        .peer-log { margin-top: 0.55rem; font-size: 0.72rem; color: var(--muted); border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.45rem; }
+        .peer-algo-note { margin-top: 0.35rem; font-size: 0.68rem; color: #6c7384; line-height: 1.35; }
+
+        .error-banner {
+            background: rgba(255, 176, 32, 0.1);
+            border: 1px solid rgba(255, 176, 32, 0.35);
+            color: var(--warn);
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Gate */
+        .gate-overlay {
+            position: fixed; inset: 0;
+            z-index: 9999;
+            display: grid;
+            place-items: center;
+            background: rgba(5, 6, 8, 0.92);
+            backdrop-filter: blur(12px);
+            padding: 1.5rem;
+        }
+        .gate-overlay.hidden { display: none; }
+        .gate-card {
+            width: min(400px, 100%);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.75rem;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+        }
+        .gate-card h2 { margin: 0 0 0.5rem; font-size: 1.25rem; }
+        .gate-card p { margin: 0 0 1rem; font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+        .gate-card input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .gate-card button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            background: var(--accent);
+            color: #051018;
+            font-family: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            transition: filter 0.2s ease, transform 0.15s ease;
+        }
+        .gate-card button:hover { filter: brightness(1.08); }
+        .gate-card button:active { transform: scale(0.98); }
+        .gate-err { color: #ff6b6b; font-size: 0.8rem; margin-top: 0.5rem; min-height: 1.2em; }
+
+        /* Calibration (locals tuning) */
+        .cal-fab {
+            position: fixed;
+            top: 0.65rem;
+            right: 0.65rem;
+            z-index: 9000;
+            width: 2rem;
+            height: 2rem;
+            padding: 0;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .cal-fab:hover, .cal-fab:focus-visible {
+            outline: none;
+            color: var(--accent);
+            border-color: var(--accent);
+            background: var(--surface2);
+        }
+        .cal-panel {
+            position: fixed;
+            top: 2.85rem;
+            right: 0.65rem;
+            z-index: 8999;
+            width: min(340px, calc(100vw - 1.3rem));
+            max-height: min(72vh, 520px);
+            overflow: auto;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 0.85rem 1rem 1rem;
+            box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+            font-size: 0.82rem;
+        }
+        .cal-panel.hidden { display: none; }
+        .cal-panel h3 { margin: 0 0 0.5rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+        .cal-panel .cal-hint { color: var(--muted); font-size: 0.75rem; margin: 0 0 0.75rem; line-height: 1.4; }
+        .cal-field { margin-bottom: 0.75rem; }
+        .cal-field label { display: block; font-weight: 600; margin-bottom: 0.25rem; font-size: 0.78rem; }
+        .cal-field .cal-val { float: right; color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+        .cal-field input[type="range"] { width: 100%; }
+        .cal-field select {
+            width: 100%; padding: 0.45rem 0.5rem; border-radius: 6px;
+            border: 1px solid var(--border); background: var(--bg); color: var(--text);
+            font-family: inherit; font-size: 0.82rem;
+        }
+        .cal-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+        .cal-actions button {
+            flex: 1;
+            min-width: 7rem;
+            padding: 0.45rem 0.6rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--surface2);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .cal-actions button.primary { background: rgba(61, 157, 255, 0.18); border-color: rgba(61, 157, 255, 0.45); color: var(--accent); }
+
+        .skeleton {
+            height: 56px;
+            border-radius: var(--radius);
+            background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+            background-size: 200% 100%;
+            animation: sk 1.2s ease-in-out infinite;
+        }
+        @keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+        @media (max-width: 700px) {
+            .details { grid-template-columns: 1fr; }
+            button.day-row { grid-template-columns: 5rem 1fr auto 1.75rem; padding: 0.85rem 0.75rem; }
+            .surf-col { font-size: 1.15rem; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            button.day-row, .details, .chev, .controls select, .gate-card button, .cal-fab { transition: none; }
+            .skeleton { animation: none; background: var(--surface); }
+            .mini-flow { animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="gate" class="gate-overlay" role="dialog" aria-modal="true" aria-labelledby="gate-title">
+    <div class="gate-card">
+        <h2 id="gate-title">Bamfield locals</h2>
+        <p>This report is for residents and community use. Enter the shared passphrase to continue. For real access control on a public URL, use Cloudflare Access or your host&rsquo;s password protection—not a secret baked into static HTML.</p>
+        <input type="password" id="gate-pass" autocomplete="current-password" placeholder="Passphrase" />
+        <button type="button" id="gate-btn">Unlock</button>
+        <div id="gate-err" class="gate-err" aria-live="polite"></div>
+    </div>
+</div>
+
+<div id="main-app" class="app-wrap" style="display:none">
+    <header>
+        <div>
+            <h1>Bamfield Surf Report</h1>
+            <p class="tagline">Model swell + CHS tides (Bamfield #08545), tuned with local windows for west-coast Vancouver Island spots. Calibrate against what you see in the water.</p>
+        </div>
+        <div class="controls">
+            <label class="sr-only" for="break-selector">Surf break</label>
+            <select id="break-selector">
+                <option value="pachena_park">Pachena &mdash; Park side</option>
+                <option value="pachena_river">Pachena &mdash; Riverside (rivermouth)</option>
+                <option value="breakers">Breakers</option>
+                <option value="keeha">Keeha Beach</option>
+                <option value="tapaltos">Tapaltos Bay</option>
+                <option value="bradys">Brady&rsquo;s Beach</option>
+                <option value="maben">Maben&rsquo;s Beach</option>
+            </select>
+            <label class="sr-only" for="unit-toggle">Units</label>
+            <select id="unit-toggle" title="Site-wide length units (surf, tides, charts)">
+                <option value="imperial">ft</option>
+                <option value="metric">m</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="map-wrap">
+        <div id="map"></div>
+        <div class="map-legend" id="map-legend" role="region" aria-label="Map guide">
+            <div class="map-legend-title">Map guide</div>
+            <div class="map-legend-body">
+                <div class="map-legend-row">
+                    <span class="map-legend-swatch"><span style="color:var(--swell);font-size:1rem;line-height:1;">▲</span></span>
+                    <span><strong style="color:var(--swell)">Purple arrow</strong> — swell farther out, pointing into this beach.</span>
+                </div>
+                <div class="map-legend-row">
+                    <span class="map-legend-swatch"><span style="color:var(--accent);font-size:1rem;line-height:1;">▲</span></span>
+                    <span><strong style="color:var(--accent)">Blue arrow</strong> — wind nearer the sand (offshore vs onshore).</span>
+                </div>
+                <div class="map-legend-row">
+                    <span class="map-legend-swatch" style="place-items:center;"><span style="display:block;width:10px;height:10px;transform:rotate(45deg);background:var(--tide);border:1px solid #fff;"></span></span>
+                    <span><strong style="color:var(--tide)">Diamond</strong> — La Perouse Bank buoy (NDBC 46206).</span>
+                </div>
+                <div class="map-legend-row">
+                    <span class="map-legend-swatch" style="place-items:center;font-size:0.55rem;color:var(--muted)">●</span>
+                    <span><strong>Pins</strong> — surf breaks. Arrows update for the expanded forecast day.</span>
+                </div>
+            </div>
+            <button type="button" class="map-legend-toggle" id="map-legend-toggle" aria-expanded="true"></button>
+        </div>
+    </div>
+    <div class="status-bar" id="status-bar"></div>
+    <div id="error-slot"></div>
+    <div id="forecast-wrapper" class="forecast-list"></div>
+
+    <button type="button" class="cal-fab" id="cal-fab" title="Calibration (per-spot tuning)" aria-expanded="false" aria-controls="cal-panel">⌗</button>
+    <div id="cal-panel" class="cal-panel hidden" role="region" aria-labelledby="cal-title">
+        <h3 id="cal-title">Calibration</h3>
+        <p class="cal-hint">Tune this device only. Settings are stored in your browser. Match observed surf, then leave them—revisit after winter storms or model upgrades.</p>
+        <div class="cal-field">
+            <label for="cal-break-name">Spot</label>
+            <div id="cal-break-name" style="font-weight:700;color:var(--text);">—</div>
+        </div>
+        <div class="cal-field">
+            <label for="cal-scale">Size scale <span class="cal-val" id="cal-scale-v"></span></label>
+            <input type="range" id="cal-scale" min="0.5" max="1.5" step="0.01" value="1" />
+        </div>
+        <div class="cal-field">
+            <label for="cal-offset">Height offset <span class="cal-val" id="cal-offset-v"></span></label>
+            <input type="range" id="cal-offset" min="-4" max="4" step="0.1" value="0" />
+        </div>
+        <div class="cal-field">
+            <label for="cal-period">Period influence <span class="cal-val" id="cal-period-v"></span></label>
+            <input type="range" id="cal-period" min="0.5" max="1.5" step="0.01" value="1" />
+        </div>
+        <div class="cal-field">
+            <label for="cal-source">Height source (hourly)</label>
+            <select id="cal-source">
+                <option value="swell">Swell partition (default)</option>
+                <option value="significant">Significant wave height (total sea)</option>
+            </select>
+        </div>
+        <div class="cal-field">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+                <input type="checkbox" id="cal-peer-on" /> Peer correction (crowd residuals)
+            </label>
+            <span class="cal-hint" style="margin-bottom:0.5rem;display:block;">Adds a <strong>condition-matched</strong> crowd correction (height, period, energy, swell direction, wind vs swell). 0% = model only; 100% = full matched residual on top of physics (not a full replace).</span>
+            <label for="cal-peer-strength">Peer blend strength <span class="cal-val" id="cal-peer-strength-v"></span></label>
+            <input type="range" id="cal-peer-strength" min="0" max="100" step="5" value="35" />
+        </div>
+        <div class="peer-log" id="cal-peer-stats"><strong>This spot peer log:</strong> (load a break)</div>
+        <div class="cal-field">
+            <span class="cal-hint" style="display:block;"><strong>Cloudflare D1 (bamfieldsurfreport):</strong> open terminal in the <code>worker</code> folder, run <code>npm install</code>, <code>npm run db:init</code>, <code>npm run deploy</code>, then set <code>PEER_API_BASE</code> in this file to your <code>*.workers.dev</code> URL. Region = where data lives (pick <strong>Western North America</strong> for Bamfield).</span>
+        </div>
+        <div class="cal-actions">
+            <button type="button" class="primary" id="cal-reset-spot">Reset this spot</button>
+            <button type="button" id="cal-reset-all">Reset all spots</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    const STORAGE_KEY = 'bamfieldSurfUnlock_v1';
+    const CAL_STORAGE = 'bamfieldSurfCalibration_v1';
+    const PEER_LOG_STORAGE = 'bamfieldPeerLog_v1';
+    const CLIENT_ID_KEY = 'bamfieldSurfClient_v1';
+    /* Change this passphrase; anyone can read it in source—use host-level auth for real privacy. */
+    const LOCAL_PASSPHRASE = 'bamfield2026';
+
+    /**
+     * HTTPS API root for shared peer votes (everyone reads/writes same pool).
+     * POST /reviews — JSON body from appendPeerReviewRemote.
+     * GET /reviews/<spotKey> — JSON { entries: [{ dayYmd, residualFt, ts?, viewerId?, modelFtSnapshot?, periodS?, energyKj?, swellDirDeg?, windDirDeg?, windSpeedKmh?, windSwellAngleDeg?, observedFt? }] }
+     * Deploy: see /worker folder (Cloudflare D1 + Worker). Paste your workers.dev URL below.
+     */
+    const PEER_API_BASE = 'https://bamfield-peer-api.andrewglennmiller.workers.dev';
+    function peerApiBase() {
+        const w = typeof window !== 'undefined' && window.BAMFIELD_PEER_API;
+        const b = (w || PEER_API_BASE || '').trim();
+        return b.startsWith('http') ? b.replace(/\/$/, '') : '';
+    }
+
+    const UNITS_KEY = 'bamfieldUnits_v1';
+
+    function getUnits() {
+        try {
+            return localStorage.getItem(UNITS_KEY) === 'metric' ? 'metric' : 'imperial';
+        } catch (_) {
+            return 'imperial';
+        }
+    }
+
+    function setUnits(u) {
+        try {
+            localStorage.setItem(UNITS_KEY, u === 'metric' ? 'metric' : 'imperial');
+        } catch (_) {}
+    }
+
+    function lenLabel(u) {
+        return (u || getUnits()) === 'metric' ? 'm' : 'ft';
+    }
+
+    function mToDisplay(m, u) {
+        if (m == null || Number.isNaN(m)) return null;
+        return (u || getUnits()) === 'metric' ? m : m * 3.28084;
+    }
+
+    function ftToDisplay(ft, u) {
+        if (ft == null || Number.isNaN(ft)) return null;
+        return (u || getUnits()) === 'metric' ? ft / 3.28084 : ft;
+    }
+
+    /** User-typed height in current display units → internal feet. */
+    function displayLenToFt(val, u) {
+        if (val == null || Number.isNaN(val)) return null;
+        return (u || getUnits()) === 'metric' ? val * 3.28084 : val;
+    }
+
+    function formatSurfFt(ft, digits, u) {
+        const v = ftToDisplay(ft, u);
+        if (v == null || Number.isNaN(v)) return '\u2014';
+        const d = digits == null ? 1 : digits;
+        return v.toFixed(d) + ' ' + lenLabel(u);
+    }
+
+    function formatSignedLenFt(ft, digits, u) {
+        const v = ftToDisplay(ft, u);
+        if (v == null || Number.isNaN(v)) return '\u2014';
+        const d = digits == null ? 1 : digits;
+        const prefix = v > 0 ? '+' : '';
+        return prefix + v.toFixed(d) + ' ' + lenLabel(u);
+    }
+
+    function peerResidualLabel(residualFt, u) {
+        if (residualFt === 0) return 'spot-on vs model';
+        if (residualFt > 0) return formatSignedLenFt(residualFt, 1, u) + ' (bigger)';
+        return formatSignedLenFt(residualFt, 1, u) + ' (smaller)';
+    }
+
+    function observedInputAttrs(u) {
+        const isM = (u || getUnits()) === 'metric';
+        return {
+            min: 0,
+            max: isM ? 12 : 40,
+            step: isM ? 0.05 : 0.1,
+            placeholder: lenLabel(u),
+            aria: isM ? 'Observed surf height in meters' : 'Observed surf height in feet',
+        };
+    }
+
+    function formatLenM(m, digits, u) {
+        const v = mToDisplay(m, u);
+        if (v == null) return '\u2014';
+        return v.toFixed(digits == null ? 1 : digits) + ' ' + lenLabel(u);
+    }
+
+    function formatHourAmPm(hour24) {
+        const h = ((hour24 % 24) + 24) % 24;
+        const h12 = h % 12 || 12;
+        return h12 + (h < 12 ? ' AM' : ' PM');
+    }
+
+    function pacificDayHourLabels() {
+        return [0, 6, 12, 18, 24];
+    }
+
+    function bearingToPixelVec(bearingDeg, speed) {
+        const r = (bearingDeg * Math.PI) / 180;
+        return { vx: Math.sin(r) * speed, vy: -Math.cos(r) * speed };
+    }
+
+    function svgPacificHourTicks(t0, t1, scaleX, chartTop, chartBottom, axisY) {
+        let out = '';
+        pacificDayHourLabels().forEach((h) => {
+            const ts = h >= 24 ? t1 : t0 + h * 3600000;
+            const x = scaleX(ts);
+            out += '<line x1="' + x.toFixed(1) + '" y1="' + chartBottom + '" x2="' + x.toFixed(1) + '" y2="' + (chartBottom + 4) + '" stroke="#4a5160" stroke-width="1"/>';
+            const lab = h >= 24 ? '12 AM' : formatHourAmPm(h);
+            out += '<text x="' + x.toFixed(1) + '" y="' + axisY + '" fill="#8b93a5" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">' + lab + '</text>';
+        });
+        [6, 12, 18].forEach((h) => {
+            const x = scaleX(t0 + h * 3600000);
+            out += '<line x1="' + x.toFixed(1) + '" y1="' + chartTop + '" x2="' + x.toFixed(1) + '" y2="' + chartBottom + '" stroke="#252a35" stroke-width="1" opacity="0.65"/>';
+        });
+        return out;
+    }
+
+    function vancouverDayBoundsMs(dayStr) {
+        let t = Date.parse(dayStr + 'T12:00:00');
+        for (let n = 0; n < 72; n++) {
+            if (vancouverYMD(new Date(t)) === dayStr) break;
+            t -= 3600000;
+        }
+        const start = t;
+        while (vancouverYMD(new Date(t)) === dayStr) t += 3600000;
+        return { start: start, end: t };
+    }
+
+    function tideValAtTime(sortedPts, t) {
+        if (!sortedPts.length) return null;
+        if (t <= sortedPts[0].t) return sortedPts[0].v;
+        if (t >= sortedPts[sortedPts.length - 1].t) return sortedPts[sortedPts.length - 1].v;
+        for (let i = 1; i < sortedPts.length; i++) {
+            if (t <= sortedPts[i].t) {
+                const a = sortedPts[i - 1];
+                const b = sortedPts[i];
+                const f = (t - a.t) / (b.t - a.t);
+                return a.v + f * (b.v - a.v);
+            }
+        }
+        return null;
+    }
+
+    /** Prefer full water-level series; fall back to HI/LO extrema for the day curve. */
+    function tideChartSeries(wlpAll, dayHilos) {
+        if (wlpAll && wlpAll.length) return wlpAll;
+        if (!dayHilos || !dayHilos.length) return null;
+        return dayHilos.map((e) => ({
+            eventDate: e.eventDate || (e.t && e.t.toISOString ? e.t.toISOString() : null),
+            value: e.value,
+        })).filter((d) => d.eventDate != null && d.value != null);
+    }
+
+    function buildTideDayChart(allSeries, dayStr) {
+        const bounds = vancouverDayBoundsMs(dayStr);
+        const allPts = (allSeries || [])
+            .map((d) => ({ t: new Date(d.eventDate).getTime(), v: d.value }))
+            .filter((p) => !Number.isNaN(p.t) && p.v != null)
+            .sort((a, b) => a.t - b.t);
+        const step = 30 * 60000;
+        const pts = [];
+        for (let t = bounds.start; t < bounds.end; t += step) {
+            const v = tideValAtTime(allPts, t);
+            if (v != null) pts.push({ t: t, v: v });
+        }
+        return { pts: pts, t0: bounds.start, t1: bounds.end };
+    }
+
+    const DEFAULT_CAL = {
+        scale: 1, offsetFt: 0, periodInfluence: 1, heightSource: 'swell',
+        peerCorrectionEnabled: false, peerCorrectionStrength: 35,
+    };
+
+    const DFO_STATION = '5cebf1e23d0f4a073c4bc062';
+    const DFO_BASE = 'https://api-iwls.dfo-mpo.gc.ca/api/v1/stations';
+
+    const breaks = {
+        pachena_park: {
+            name: 'Pachena (Park side)',
+            lat: 48.7854, lon: -125.104,
+            coastNormal: 242,
+            swellDistKm: 0.95,
+            windDistKm: 0.34,
+            window: [205, 238],
+            multiplier: 0.52,
+            westDeadZone: [265, 305],
+            westFactor: 0.28,
+            seabed: 'Long flat sand; huge bay kills size. W swell often misses or wraps to Parks side.',
+            shape: 'Sand beach inside bay (S/E side)',
+        },
+        pachena_river: {
+            name: 'Pachena (Riverside)',
+            lat: 48.7950, lon: -125.138,
+            coastNormal: 228,
+            swellDistKm: 0.95,
+            windDistKm: 0.34,
+            window: [188, 232],
+            multiplier: 0.62,
+            westDeadZone: [260, 300],
+            westFactor: 0.35,
+            seabed: 'Rivermouth sandbar—more consistent than open beach but often soft on small, short-period days.',
+            shape: 'Rivermouth / sandbar (N/W side)',
+        },
+        breakers: {
+            name: 'Breakers',
+            lat: 48.830, lon: -125.152,
+            swellDistKm: 1.0,
+            windDistKm: 0.36,
+            window: [160, 215],
+            multiplier: 0.32,
+            seabed: 'Very protected; needs solid south energy.',
+            shape: 'Sheltered cove',
+            coastNormal: 200,
+        },
+        keeha: {
+            name: 'Keeha Beach',
+            lat: 48.7832, lon: -125.160,
+            coastNormal: 252,
+            swellDistKm: 1.35,
+            windDistKm: 0.38,
+            window: [215, 295],
+            multiplier: 1.05,
+            shorebreakNote: true,
+            seabed: 'Steep sand; harsh shorebreak—lots of energy closing on the beach.',
+            shape: 'Open beach, steep face',
+        },
+        tapaltos: {
+            name: 'Tapaltos Bay',
+            lat: 48.7992, lon: -125.182,
+            coastNormal: 262,
+            swellDistKm: 1.15,
+            windDistKm: 0.36,
+            window: [235, 285],
+            multiplier: 0.88,
+            seabed: 'Wide open to W swell; more predictable than pocket beaches but still beach-break randomness.',
+            shape: 'Open bay / beach (east side)',
+        },
+        bradys: {
+            name: 'Brady\u2019s Beach',
+            lat: 48.7692, lon: -125.251,
+            coastNormal: 262,
+            swellDistKm: 1.55,
+            windDistKm: 0.4,
+            window: [220, 300],
+            multiplier: 1.0,
+            shorebreakNote: true,
+            seabed: 'Long open beach; sea stacks and pockets—exposed W swell, steep shorebreak at the beach.',
+            shape: 'Open coast, pocket coves',
+        },
+        maben: {
+            name: 'Maben\u2019s Beach',
+            lat: 48.7506, lon: -125.137,
+            coastNormal: 198,
+            swellDistKm: 1.1,
+            windDistKm: 0.34,
+            window: [175, 225],
+            multiplier: 0.58,
+            reefNote: true,
+            seabed: 'Slightly more reef-influenced than pure sand neighbours—still needs the right swell.',
+            shape: 'Mixed reef / sand (Maa-nulth beach)',
+        },
+    };
+
+    /** ECCC discus buoys via NOAA NDBC — open-coast + inside-strait reference (not channel whistle markers). */
+    const nearbyBuoys = {
+        '46206': {
+            id: '46206',
+            name: 'La Perouse Bank',
+            short: 'La Perouse',
+            lat: 48.84,
+            lon: -126.0,
+            note: 'Open Pacific · primary swell reference for west VI',
+            color: '#2ee6d6',
+        },
+    };
+    const LA_PEROUSE_BUOY = '46206';
+
+    let map;
+    let mapMarkers = {};
+    let buoyMarkers = {};
+    let mapDirLayers = { swell: null, wind: null };
+    let marineData, weatherData, tideWlp, tideHilo;
+    let buoyData = {};
+    let loadToken = 0;
+    /** Latest merged remote rows per spot (filled when PEER_API_BASE is set). */
+    let peerRemoteEntries = {};
+    let syncCalibrationPanel = function () {};
+
+    const $ = (id) => document.getElementById(id);
+
+    function ensureClientId() {
+        try {
+            let cid = localStorage.getItem(CLIENT_ID_KEY);
+            if (!cid) {
+                cid = 'c-' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+                localStorage.setItem(CLIENT_ID_KEY, cid);
+            }
+            return cid;
+        } catch (_) {
+            return 'anon';
+        }
+    }
+
+    function loadPeerRaw() {
+        try {
+            return JSON.parse(localStorage.getItem(PEER_LOG_STORAGE)) || { reviews: {} };
+        } catch (_) {
+            return { reviews: {} };
+        }
+    }
+
+    function savePeerRaw(log) {
+        try {
+            localStorage.setItem(PEER_LOG_STORAGE, JSON.stringify(log));
+        } catch (_) {}
+    }
+
+    function flattenLocalPeerReviews(spotKey) {
+        const block = loadPeerRaw().reviews?.[spotKey] || {};
+        const rows = [];
+        Object.keys(block).sort().forEach((dayStr) => {
+            const blob = block[dayStr];
+            const arr = Array.isArray(blob) ? blob : [blob];
+            arr.forEach((e) => {
+                if (!e || typeof e.residualFt !== 'number') return;
+                rows.push(Object.assign({ dayStr: dayStr, source: 'local' }, e));
+            });
+        });
+        return rows;
+    }
+
+    function normalizeRemotePeerRow(r) {
+        if (!r || typeof r.residualFt !== 'number') return null;
+        const dayStr = r.dayStr || r.dayYmd || r.day || '';
+        if (!dayStr || dayStr.length < 8) return null;
+        return {
+            dayStr: dayStr.slice(0, 10),
+            residualFt: r.residualFt,
+            modelFtSnapshot: r.modelFtSnapshot ?? r.modelFt,
+            periodS: r.periodS != null ? Number(r.periodS) : null,
+            energyKj: r.energyKj != null ? Number(r.energyKj) : null,
+            swellDirDeg: r.swellDirDeg != null ? Number(r.swellDirDeg) : null,
+            windDirDeg: r.windDirDeg != null ? Number(r.windDirDeg) : null,
+            windSpeedKmh: r.windSpeedKmh != null ? Number(r.windSpeedKmh) : null,
+            windSwellAngleDeg: r.windSwellAngleDeg != null ? Number(r.windSwellAngleDeg) : null,
+            observedFt: r.observedFt != null ? Number(r.observedFt) : null,
+            ts: r.ts || 0,
+            viewerId: r.viewerId || '',
+            source: 'remote',
+        };
+    }
+
+    /** Dedupe near-identical votes (same viewer + day + residual within ~2 min). */
+    function dedupePeerRows(rows) {
+        const seen = new Set();
+        const out = [];
+        rows.forEach((r) => {
+            const bucket = Math.floor((r.ts || 0) / 120000);
+            const key = (r.viewerId || '') + '|' + r.dayStr + '|' + r.residualFt + '|' + bucket;
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push(r);
+        });
+        return out;
+    }
+
+    function flattenPeerReviews(spotKey) {
+        const local = flattenLocalPeerReviews(spotKey);
+        const rem = (peerRemoteEntries[spotKey] || []).map(normalizeRemotePeerRow).filter(Boolean);
+        return dedupePeerRows(local.concat(rem));
+    }
+
+    async function fetchPeerReviewsRemote(spotKey) {
+        peerRemoteEntries[spotKey] = [];
+        const base = peerApiBase();
+        if (!base) return;
+        try {
+            const r = await fetch(base + '/reviews/' + encodeURIComponent(spotKey), { cache: 'no-store' });
+            if (!r.ok) return;
+            const data = await r.json();
+            const raw = Array.isArray(data) ? data : (data.entries || data.data || []);
+            peerRemoteEntries[spotKey] = raw.map(normalizeRemotePeerRow).filter(Boolean);
+        } catch (_) {}
+    }
+
+    /**
+     * Condition-matched peer residual for a forecast row.
+     * Votes weighted by recency + similarity: model height, period, energy, swell direction,
+     * wind vs swell angle (offshore/cross/on), and wind speed.
+     */
+    function predictPeerCorrection(spotKey, ctx, halfLifeDays) {
+        const hl = halfLifeDays == null ? 56 : Number(halfLifeDays);
+        const modelFt = Math.max(0, Number(ctx?.modelFt) || 0);
+        const periodS = ctx?.periodS != null ? Number(ctx.periodS) : null;
+        const energyKj = ctx?.energyKj != null ? Number(ctx.energyKj) : null;
+        const swellDir = ctx?.swellDirDeg != null ? Number(ctx.swellDirDeg) : null;
+        const windDir = ctx?.windDirDeg != null ? Number(ctx.windDirDeg) : null;
+        const windSpeedKmh = ctx?.windSpeedKmh != null ? Number(ctx.windSpeedKmh) : null;
+        const windSwellAngle = ctx?.windSwellAngleDeg != null ? Number(ctx.windSwellAngleDeg) : null;
+        const flat = flattenPeerReviews(spotKey);
+        const sigmaM = 0.38;
+        const sigmaP = 5;
+        const sigmaE = 0.65;
+        const sigmaDir = 28;
+        const sigmaWindAng = 32;
+        const sigmaWindSp = 0.55;
+
+        let globalNum = 0;
+        let globalDen = 0;
+        let matchNum = 0;
+        let matchDen = 0;
+
+        flat.forEach((r) => {
+            const ageDays = (Date.now() - (r.ts || 0)) / 86400000;
+            const wTime = Math.pow(2, -ageDays / hl);
+
+            const rm = Math.max(0, Number(r.modelFtSnapshot ?? r.modelFt) || modelFt);
+            const dM = Math.abs(Math.log(rm + 0.5) - Math.log(modelFt + 0.5));
+            let sim = Math.exp(-(dM * dM) / (2 * sigmaM * sigmaM));
+
+            if (periodS != null && r.periodS != null && !Number.isNaN(r.periodS)) {
+                const dP = Math.abs(r.periodS - periodS) / sigmaP;
+                sim *= Math.exp(-(dP * dP) / 2);
+            }
+            if (energyKj != null && r.energyKj != null && !Number.isNaN(r.energyKj)) {
+                const dE = Math.abs(Math.log(r.energyKj + 1) - Math.log(energyKj + 1));
+                sim *= Math.exp(-(dE * dE) / (2 * sigmaE * sigmaE));
+            }
+            if (swellDir != null && r.swellDirDeg != null && !Number.isNaN(r.swellDirDeg)) {
+                const dDir = angleDiff(swellDir, r.swellDirDeg) / sigmaDir;
+                sim *= Math.exp(-(dDir * dDir) / 2);
+            }
+            if (windSwellAngle != null && r.windSwellAngleDeg != null && !Number.isNaN(r.windSwellAngleDeg)) {
+                const dWa = Math.abs(windSwellAngle - r.windSwellAngleDeg) / sigmaWindAng;
+                sim *= Math.exp(-(dWa * dWa) / 2);
+            } else if (windDir != null && r.windDirDeg != null && swellDir != null && r.swellDirDeg != null) {
+                const curWa = angleDiff(windDir, swellDir);
+                const voteWa = angleDiff(r.windDirDeg, r.swellDirDeg);
+                const dWa = Math.abs(curWa - voteWa) / sigmaWindAng;
+                sim *= Math.exp(-(dWa * dWa) / 2);
+            }
+            if (windSpeedKmh != null && r.windSpeedKmh != null && !Number.isNaN(r.windSpeedKmh)) {
+                const dWs = Math.abs(Math.log(r.windSpeedKmh + 1) - Math.log(windSpeedKmh + 1));
+                sim *= Math.exp(-(dWs * dWs) / (2 * sigmaWindSp * sigmaWindSp));
+            }
+
+            const wMatch = wTime * sim;
+            globalNum += r.residualFt * wTime;
+            globalDen += wTime;
+            matchNum += r.residualFt * wMatch;
+            matchDen += wMatch;
+        });
+
+        const globalMean = globalDen > 0 ? globalNum / globalDen : 0;
+        const usedGlobalFallback = matchDen < 0.35;
+        const rawResidual = usedGlobalFallback ? globalMean : (matchNum / matchDen);
+        const effN = matchDen;
+        const shrink = 1 - Math.exp(-Math.min(effN, 12));
+        const predictedResidualFt = rawResidual * shrink;
+
+        const maeSimple = flat.length ? flat.reduce((s, r) => s + Math.abs(r.residualFt), 0) / flat.length : 0;
+        const localOnly = flattenLocalPeerReviews(spotKey);
+        const remoteOnly = peerRemoteEntries[spotKey] || [];
+
+        return {
+            count: flat.length,
+            effectiveWeight: effN,
+            predictedResidualFt,
+            rawResidualFt: rawResidual,
+            shrink,
+            globalMeanResidualFt: globalMean,
+            usedGlobalFallback,
+            maeAllTime: maeSimple,
+            localCount: localOnly.length,
+            remoteCount: remoteOnly.length,
+        };
+    }
+
+    function summarizePeerResiduals(spotKey, halfLifeDays) {
+        const ctx = { modelFt: 2, periodS: 10, energyKj: 50 };
+        const p = predictPeerCorrection(spotKey, ctx, halfLifeDays);
+        return {
+            count: p.count,
+            meanResidualFt: p.globalMeanResidualFt,
+            maeAllTime: p.maeAllTime,
+            localCount: p.localCount,
+            remoteCount: p.remoteCount,
+            effectiveWeight: p.effectiveWeight,
+        };
+    }
+
+    async function pushPeerReviewRemote(body) {
+        const base = peerApiBase();
+        if (!base) return;
+        try {
+            await fetch(base + '/reviews', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+        } catch (_) {}
+    }
+
+    function appendPeerReview(spotKey, dayYmd, modelFt, residualFt, ctx) {
+        const log = loadPeerRaw();
+        if (!log.reviews) log.reviews = {};
+        if (!log.reviews[spotKey]) log.reviews[spotKey] = {};
+        const prior = log.reviews[spotKey][dayYmd];
+        const next = Array.isArray(prior) ? prior.concat() : prior ? [prior] : [];
+        const observedFt = ctx && ctx.observedFt != null ? Number(ctx.observedFt) : null;
+        const entry = {
+            residualFt,
+            modelFtSnapshot: modelFt,
+            periodS: ctx && ctx.periodS != null ? Number(ctx.periodS) : null,
+            energyKj: ctx && ctx.energyKj != null ? Number(ctx.energyKj) : null,
+            swellDirDeg: ctx && ctx.swellDirDeg != null ? Number(ctx.swellDirDeg) : null,
+            windDirDeg: ctx && ctx.windDirDeg != null ? Number(ctx.windDirDeg) : null,
+            windSpeedKmh: ctx && ctx.windSpeedKmh != null ? Number(ctx.windSpeedKmh) : null,
+            windSwellAngleDeg: ctx && ctx.windSwellAngleDeg != null ? Number(ctx.windSwellAngleDeg) : null,
+            observedFt: observedFt != null && !Number.isNaN(observedFt) ? observedFt : null,
+            viewerId: ensureClientId(),
+            ts: Date.now(),
+        };
+        next.push(entry);
+        log.reviews[spotKey][dayYmd] = next;
+        savePeerRaw(log);
+        pushPeerReviewRemote({
+            spotKey, dayYmd, modelFt, residualFt,
+            periodS: entry.periodS, energyKj: entry.energyKj,
+            swellDirDeg: entry.swellDirDeg, windDirDeg: entry.windDirDeg,
+            windSpeedKmh: entry.windSpeedKmh, windSwellAngleDeg: entry.windSwellAngleDeg,
+            observedFt: entry.observedFt,
+            viewerId: entry.viewerId, ts: entry.ts,
+        });
+    }
+
+    function peerStripDataAttrs(peerCtx) {
+        if (!peerCtx) return '';
+        const a = [];
+        const put = (name, val) => {
+            if (val != null && val !== '' && !Number.isNaN(Number(val))) {
+                a.push('data-peer-' + name + '="' + val + '"');
+            }
+        };
+        put('period', peerCtx.periodS);
+        put('energy', peerCtx.energyKj);
+        put('swell-dir', peerCtx.swellDirDeg);
+        put('wind-dir', peerCtx.windDirDeg);
+        put('wind-speed', peerCtx.windSpeedKmh);
+        put('wind-swell-angle', peerCtx.windSwellAngleDeg);
+        return a.length ? (' ' + a.join(' ')) : '';
+    }
+
+    function peerSectionHtml(dayStr, todayStr, yesterdayStr, spotKey, modelFtRounded, peerCtx, units) {
+        if (dayStr !== yesterdayStr && dayStr !== todayStr) return '';
+        const u = units || getUnits();
+        const flatAll = flattenPeerReviews(spotKey).filter((r) => r.dayStr === dayStr);
+        let logTxt;
+        if (flatAll.length === 0) {
+            logTxt = '<em>No votes yet for this date.</em>';
+        } else {
+            const lv = flatAll[flatAll.length - 1].residualFt;
+            logTxt = '<strong>' + flatAll.length + '</strong> vote(s) for this date (merged local + server). Latest: <strong>'
+                + peerResidualLabel(lv, u) + '</strong>';
+        }
+
+        const deltas = [-2, -1, -0.5, 0.5, 1, 2];
+        const deltaBtns = deltas.map((d) => (
+            '<button type="button" class="peer-btn" data-peer-action="delta" '
+                + 'data-peer-spot="' + spotKey + '" data-peer-day="' + dayStr + '" data-model-ft="' + modelFtRounded + '" '
+                + 'data-delta-ft="' + d + '">' + formatSignedLenFt(d, u === 'metric' ? 2 : 1, u) + '</button>'
+        )).join('');
+
+        const est = formatSurfFt(modelFtRounded, 1, u);
+        const ctxLine = dayStr === todayStr
+            ? 'Same-day check — compare what you see (or surfed earlier) vs this estimate (~<strong>'
+                + est + '</strong>). Helps tune faster than waiting overnight.'
+            : 'After surfing yesterday — vs this estimate (~<strong>'
+                + est + '</strong>).';
+
+        const obs = observedInputAttrs(u);
+        return (
+            '<div class="peer-strip"' + peerStripDataAttrs(peerCtx) + '>'
+                + '<div class="peer-title">Field check · today &amp; yesterday</div>'
+                + '<div class="peer-sub">' + ctxLine + '</div>'
+                + '<div class="peer-buttons">'
+                + '<button type="button" class="peer-btn confirm" data-peer-action="confirm" '
+                + 'data-peer-spot="' + spotKey + '" data-peer-day="' + dayStr + '" data-model-ft="' + modelFtRounded + '">Spot on</button>'
+                + deltaBtns
+                + '</div>'
+                + '<div class="peer-custom">'
+                + '<label>Actual surf</label>'
+                + '<input type="number" class="peer-observed-input" min="' + obs.min + '" max="' + obs.max + '" step="' + obs.step + '" placeholder="' + obs.placeholder + '" '
+                + 'aria-label="' + obs.aria + '" />'
+                + '<span class="peer-unit-label" style="font-size:0.72rem;color:var(--muted);">' + lenLabel(u) + '</span>'
+                + '<button type="button" class="peer-btn" data-peer-action="observed" '
+                + 'data-peer-spot="' + spotKey + '" data-peer-day="' + dayStr + '" data-model-ft="' + modelFtRounded + '">Log size</button>'
+                + '</div>'
+                + '<div class="peer-log">' + logTxt + '</div>'
+                + '<div class="peer-algo-note">Residual vs model, tagged with height, period, energy, swell direction &amp; wind geometry for smart matching.</div>'
+                + '</div>'
+        );
+    }
+
+    function finalizeSurfWithPeer(modelFtDisplayed, spotKey, cal, peerCtx) {
+        const c = Object.assign({}, DEFAULT_CAL, cal);
+        if (!c.peerCorrectionEnabled) {
+            return { ft: modelFtDisplayed, peer: null };
+        }
+        const strength = Math.max(0, Math.min(100, Number(c.peerCorrectionStrength ?? 35)));
+        if (strength <= 0) return { ft: modelFtDisplayed, peer: null };
+        const pred = predictPeerCorrection(spotKey, peerCtx || { modelFt: modelFtDisplayed });
+        const adj = pred.predictedResidualFt * (strength / 100);
+        return {
+            ft: Math.max(0, modelFtDisplayed + adj),
+            peer: Object.assign({ appliedAdjFt: adj, blendPct: strength }, pred),
+        };
+    }
+
+    function peerCtxFromStrip(strip) {
+        if (!strip) return {};
+        const attrNum = (name) => {
+            const v = strip.getAttribute('data-peer-' + name);
+            if (v === '' || v == null) return null;
+            const n = Number(v);
+            return Number.isNaN(n) ? null : n;
+        };
+        return {
+            periodS: attrNum('period'),
+            energyKj: attrNum('energy'),
+            swellDirDeg: attrNum('swell-dir'),
+            windDirDeg: attrNum('wind-dir'),
+            windSpeedKmh: attrNum('wind-speed'),
+            windSwellAngleDeg: attrNum('wind-swell-angle'),
+        };
+    }
+
+    function submitPeerVote(spot, day, mf, residual, strip, observedFt) {
+        const ctx = peerCtxFromStrip(strip);
+        ctx.observedFt = observedFt;
+        appendPeerReview(spot, day, mf, residual, ctx);
+        showPeerSubmitSuccess(strip);
+        refreshPeerStripLog(strip, spot, day);
+        const key = $('break-selector').value;
+        fetchPeerReviewsRemote(key).then(() => {
+            refreshPeerStripLog(strip, spot, day);
+            syncCalibrationPanel(key);
+        });
+    }
+
+    function initPeerDelegation() {
+        const root = $('main-app');
+        if (!root || root.dataset.peerDelegation === '1') return;
+        root.dataset.peerDelegation = '1';
+        root.addEventListener('click', (ev) => {
+            const t = ev.target.closest('[data-peer-action]');
+            if (!t || !root.contains(t)) return;
+            ev.stopPropagation();
+            const spot = t.getAttribute('data-peer-spot');
+            const day = t.getAttribute('data-peer-day');
+            const mf = Number(t.getAttribute('data-model-ft'));
+            const strip = t.closest('.peer-strip');
+            let residual = null;
+            let observedFt = null;
+            if (t.dataset.peerAction === 'confirm') residual = 0;
+            else if (t.dataset.peerAction === 'delta') residual = Number(t.getAttribute('data-delta-ft'));
+            else if (t.dataset.peerAction === 'observed') {
+                const inp = strip && strip.querySelector('.peer-observed-input');
+                const obsVal = inp ? Number(inp.value) : NaN;
+                if (!Number.isFinite(obsVal) || obsVal < 0) return;
+                observedFt = displayLenToFt(obsVal, getUnits());
+                if (observedFt == null) return;
+                residual = Math.round((observedFt - mf) * 100) / 100;
+            }
+            if (!spot || !day || !Number.isFinite(mf) || residual == null || Number.isNaN(residual)) return;
+            submitPeerVote(spot, day, mf, residual, strip, observedFt);
+        });
+        root.addEventListener('keydown', (ev) => {
+            if (ev.key !== 'Enter') return;
+            const inp = ev.target;
+            if (!inp || !inp.classList || !inp.classList.contains('peer-observed-input')) return;
+            const strip = inp.closest('.peer-strip');
+            const btn = strip && strip.querySelector('[data-peer-action="observed"]');
+            if (btn) btn.click();
+        });
+    }
+
+    function getSpotCalibration(key) {
+        try {
+            const all = JSON.parse(localStorage.getItem(CAL_STORAGE) || '{}');
+            return Object.assign({}, DEFAULT_CAL, all[key] || {});
+        } catch (_) {
+            return Object.assign({}, DEFAULT_CAL);
+        }
+    }
+
+    function saveSpotCalibration(key, patch) {
+        try {
+            const all = JSON.parse(localStorage.getItem(CAL_STORAGE) || '{}');
+            const merged = Object.assign({}, getSpotCalibration(key), patch);
+            all[key] = merged;
+            localStorage.setItem(CAL_STORAGE, JSON.stringify(all));
+        } catch (_) {}
+    }
+
+    function resetCalibration(key) {
+        try {
+            const all = JSON.parse(localStorage.getItem(CAL_STORAGE) || '{}');
+            delete all[key];
+            localStorage.setItem(CAL_STORAGE, JSON.stringify(all));
+        } catch (_) {}
+    }
+
+    function resetAllCalibration() {
+        try {
+            localStorage.removeItem(CAL_STORAGE);
+        } catch (_) {}
+    }
+
+    let calSyncing = false;
+
+    function pickHourlyHeight(hourlyM, i, cal) {
+        const c = cal || DEFAULT_CAL;
+        if (c.heightSource === 'significant') {
+            return hourlyM.wave_height?.[i] ?? hourlyM.swell_wave_height?.[i];
+        }
+        return hourlyM.swell_wave_height?.[i] ?? hourlyM.wave_height?.[i];
+    }
+
+    function pickDailyHeightMax(daily, i, cal) {
+        const c = cal || DEFAULT_CAL;
+        if (c.heightSource === 'significant') {
+            return daily.wave_height_max?.[i] ?? daily.swell_wave_height_max?.[i];
+        }
+        return daily.swell_wave_height_max?.[i] ?? daily.wave_height_max?.[i];
+    }
+
+    function degToCompass(d) {
+        if (d == null || Number.isNaN(d)) return '\u2014';
+        const dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+        return dirs[Math.round(((d % 360) + 360) % 360 / 22.5) % 16];
+    }
+
+    function angleDiff(a, b) {
+        const d = Math.abs(a - b) % 360;
+        return d > 180 ? 360 - d : d;
+    }
+
+    function windVsSwellLabel(windDir, swellDir) {
+        if (windDir == null || swellDir == null) return '\u2014';
+        const ad = angleDiff(windDir, swellDir);
+        if (ad < 35) return 'aligned with swell (often textured)';
+        if (ad < 100) return 'cross-shore';
+        return 'off-angle to swell';
+    }
+
+    function calculateSurf(swellH, swellDir, period, spot, cal) {
+        const c = Object.assign({}, DEFAULT_CAL, cal);
+        if (swellH == null || swellH <= 0) return 0;
+        const p = period && period > 0 ? period : 8;
+        const mid = (spot.window[0] + spot.window[1]) / 2;
+        const spread = Math.abs(spot.window[1] - spot.window[0]) / 2;
+        let penalty = 1;
+        const off = Math.abs(swellDir - mid);
+        if (off > spread * 1.2) penalty *= 0.42;
+        else if (off > spread * 0.65) penalty *= 0.72;
+
+        if (spot.westDeadZone && swellDir >= spot.westDeadZone[0] && swellDir <= spot.westDeadZone[1]) {
+            penalty *= spot.westFactor != null ? spot.westFactor : 0.35;
+        }
+
+        let m = spot.multiplier;
+        if (spot.reefNote && p > 14) m *= 1.06;
+        const pFac = (p / 10) * (c.periodInfluence ?? 1);
+        let h = swellH * m * pFac * penalty;
+
+        if (spot.shorebreakNote && h * 3.28 > 5) h *= 0.92;
+        if (spot.id === 'pachena_river' && swellH < 0.4 && p < 9) h *= 0.75;
+
+        let ft = h * 3.28084;
+        ft = ft * (c.scale ?? 1) + (c.offsetFt ?? 0);
+        return Math.max(0, ft);
+    }
+
+    function summarizeHourlyForDay(dayTimeISO, hourlyM, hourlyW, spot, cal) {
+        const day = dayTimeISO.slice(0, 10);
+        const times = hourlyM.time;
+        let best = { ft: 0, swell: 0, dir: null, p: null, idx: 0, wind: null, wdir: null };
+
+        for (let i = 0; i < times.length; i++) {
+            if (!times[i].startsWith(day)) continue;
+            const sh = pickHourlyHeight(hourlyM, i, cal);
+            const sd = hourlyM.swell_wave_direction?.[i] ?? hourlyM.wave_direction?.[i];
+            const sp = hourlyM.swell_wave_period?.[i] ?? hourlyM.wave_period?.[i];
+            if (sh == null || sd == null) continue;
+            const ft = calculateSurf(sh, sd, sp, spot, cal);
+            if (ft > best.ft) {
+                best = {
+                    ft, swell: sh, dir: sd, p: sp, idx: i,
+                    wind: hourlyW?.wind_speed_10m?.[i],
+                    wdir: hourlyW?.wind_direction_10m?.[i],
+                };
+            }
+        }
+        return best;
+    }
+
+    async function fetchJsonFlexible(url) {
+        const tryParse = async (res) => {
+            const t = await res.text();
+            try { return JSON.parse(t); } catch (_) { return { _raw: t, _error: true }; }
+        };
+        try {
+            const res = await fetch(url);
+            if (res.ok) return await tryParse(res);
+        } catch (_) {}
+        const proxy = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+        const res2 = await fetch(proxy);
+        if (!res2.ok) throw new Error('fetch failed');
+        return await tryParse(res2);
+    }
+
+    function isTideArray(data) {
+        return Array.isArray(data) && data.length && (data[0].value !== undefined || data[0].eventDate);
+    }
+
+    async function fetchTideSeries(code, fromISO, toISO) {
+        const upstream = `${DFO_BASE}/${DFO_STATION}/data?time-series-code=${code}&from=${fromISO}&to=${toISO}`;
+        const base = peerApiBase();
+        if (base) {
+            try {
+                const proxyUrl = base + '/tide/' + encodeURIComponent(code)
+                    + '?from=' + encodeURIComponent(fromISO) + '&to=' + encodeURIComponent(toISO);
+                const res = await fetch(proxyUrl, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (isTideArray(data)) return data;
+                }
+            } catch (_) {}
+        }
+        try {
+            const data = await fetchJsonFlexible(upstream);
+            if (isTideArray(data)) return data;
+        } catch (_) {}
+        return null;
+    }
+
+    function classifyHilo(events) {
+        if (!events || !events.length) return [];
+        const s = [...events].sort((a, b) => new Date(a.eventDate) - new Date(b.eventDate));
+        return s.map((e, i) => {
+            const v = e.value;
+            const prev = s[i - 1]?.value;
+            const next = s[i + 1]?.value;
+            let type = 'slack';
+            if (prev != null && next != null) {
+                if (v >= prev && v >= next) type = 'high';
+                else if (v <= prev && v <= next) type = 'low';
+            } else if (prev == null && next != null) {
+                if (v > next) type = 'high';
+                else if (v < next) type = 'low';
+            } else if (next == null && prev != null) {
+                if (v > prev) type = 'high';
+                else if (v < prev) type = 'low';
+            }
+            return { ...e, type, t: new Date(e.eventDate) };
+        });
+    }
+
+    /** YYYY-MM-DD in America/Vancouver for comparing tide events to Open-Meteo days */
+    function vancouverYMD(d) {
+        return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Vancouver', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    }
+
+    function vancouverYesterdayYMD() {
+        let d = new Date();
+        const today = vancouverYMD(d);
+        while (vancouverYMD(d) === today) d = new Date(d.getTime() - 3600000);
+        return vancouverYMD(d);
+    }
+
+    function weatherDailyIndex(dayStr, dailyW) {
+        if (!dailyW || !dailyW.time) return -1;
+        return dailyW.time.findIndex((t) => t.slice(0, 10) === dayStr);
+    }
+
+    function travelBearing(fromDeg) {
+        if (fromDeg == null || Number.isNaN(fromDeg)) return 0;
+        return ((fromDeg + 180) % 360);
+    }
+
+    function ndbcRowUtcMs(yy, mo, dd, hh) {
+        const y = yy >= 100 ? yy : 2000 + yy;
+        return Date.UTC(y, mo - 1, dd, hh, 0, 0);
+    }
+
+    function vancouverHourFromUtcMs(t, dayStr) {
+        const d = new Date(t);
+        if (vancouverYMD(d) !== dayStr) return -1;
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Vancouver', hour: 'numeric', hour12: false,
+        }).formatToParts(d);
+        const hp = parts.find((p) => p.type === 'hour');
+        let h = hp ? parseInt(hp.value, 10) : -1;
+        if (h === 24) h = 0;
+        return Number.isNaN(h) ? -1 : h;
+    }
+
+    function parseNdbcStdMet(text) {
+        const out = [];
+        if (!text) return out;
+        text.split('\n').forEach((line) => {
+            if (!line || line[0] === '#') return;
+            const p = line.trim().split(/\s+/);
+            if (p.length < 9) return;
+            const yy = +p[0];
+            const mo = +p[1];
+            const dd = +p[2];
+            const hh = +p[3];
+            if (!yy || !mo || !dd || Number.isNaN(hh)) return;
+            const wdir = p[5] === 'MM' ? null : +p[5];
+            const wspdMs = p[6] === 'MM' ? null : +p[6];
+            const wvhtM = p[8] === 'MM' ? null : +p[8];
+            const dpd = p[9] === 'MM' ? null : +p[9];
+            const mwd = p.length > 11 && p[11] !== 'MM' ? +p[11] : null;
+            out.push({
+                t: ndbcRowUtcMs(yy, mo, dd, hh),
+                wdir,
+                wspdKmh: wspdMs != null ? wspdMs * 3.6 : null,
+                wvhtM,
+                dpd,
+                mwd,
+            });
+        });
+        out.sort((a, b) => a.t - b.t);
+        return out;
+    }
+
+    async function fetchNdbcText(stationId) {
+        const base = peerApiBase();
+        if (base) {
+            try {
+                const res = await fetch(base + '/buoy/' + encodeURIComponent(stationId), { cache: 'no-store' });
+                if (res.ok) return await res.text();
+            } catch (_) {}
+        }
+        return null;
+    }
+
+    async function fetchAllBuoyData() {
+        const text = await fetchNdbcText(LA_PEROUSE_BUOY);
+        return { '46206': text ? parseNdbcStdMet(text) : [] };
+    }
+
+    function summarizeBuoyForDay(dayStr, rows) {
+        if (!rows || !rows.length) return null;
+        const dayRows = rows.filter((r) => vancouverYMD(new Date(r.t)) === dayStr);
+        if (!dayRows.length) return null;
+        let maxM = null;
+        let maxRow = null;
+        dayRows.forEach((r) => {
+            if (r.wvhtM != null && (maxM == null || r.wvhtM > maxM)) {
+                maxM = r.wvhtM;
+                maxRow = r;
+            }
+        });
+        return {
+            count: dayRows.length,
+            maxM: maxM,
+            dpd: maxRow && maxRow.dpd != null ? maxRow.dpd : null,
+            mwd: maxRow && maxRow.mwd != null ? maxRow.mwd : null,
+            wspdKmh: maxRow && maxRow.wspdKmh != null ? maxRow.wspdKmh : null,
+        };
+    }
+
+    function buildBuoyHourlyForDay(dayStr, buoyId) {
+        const hours = [];
+        for (let h = 0; h < 24; h++) hours.push({ h: h, wvhtM: null });
+        const rows = buoyData[buoyId] || [];
+        rows.forEach((r) => {
+            const hr = vancouverHourFromUtcMs(r.t, dayStr);
+            if (hr < 0 || hr > 23 || r.wvhtM == null) return;
+            hours[hr].wvhtM = r.wvhtM;
+        });
+        return hours;
+    }
+
+    function drawBuoyWaveSVG(dayStr, uid, units) {
+        const u = units || getUnits();
+        const lenU = lenLabel(u);
+        const hours = buildBuoyHourlyForDay(dayStr, LA_PEROUSE_BUOY);
+        const vals = hours.map((hr) => mToDisplay(hr.wvhtM, u)).filter((v) => v != null);
+        if (!vals.length) {
+            return '<p style="color:#666;font-size:0.75rem;margin:0;padding:0.5rem;">La Perouse (46206): no hourly data this day.</p>';
+        }
+        const w = 400;
+        const h = 140;
+        const padL = 36;
+        const padR = 10;
+        const bottom = 108;
+        const chartH = bottom - 22;
+        const maxDisp = Math.max(0.5, ...vals);
+        const groupW = (w - padL - padR) / 24;
+        const barW = Math.max(3, groupW * 0.55);
+        let grid = '';
+        [0, 0.5, 1].forEach((frac) => {
+            const val = maxDisp * frac;
+            const y = bottom - (val / maxDisp) * chartH;
+            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#2a2f3a" stroke-width="1"/>';
+            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#6c7384" font-size="7" text-anchor="end">' + val.toFixed(1) + '</text>';
+        });
+        grid += '<text x="' + (padL - 4) + '" y="14" fill="#8b93a5" font-size="7" text-anchor="end">' + lenU + '</text>';
+        let bars = '';
+        const tickHours = [0, 6, 12, 18];
+        hours.forEach((hr, hi) => {
+            const v = mToDisplay(hr.wvhtM, u);
+            if (v == null) return;
+            const x0 = padL + hi * groupW + groupW * 0.2;
+            const bh = (v / maxDisp) * chartH;
+            bars += '<rect x="' + x0.toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#2ee6d6" rx="1" opacity="0.9"/>';
+            if (tickHours.indexOf(hr.h) >= 0) {
+                bars += '<text x="' + (x0 + barW / 2).toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle">' + formatHourAmPm(hr.h) + '</text>';
+            }
+        });
+        const xEnd = padL + 24 * groupW - groupW * 0.2;
+        bars += '<text x="' + xEnd.toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle">12 AM</text>';
+        return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">' + grid + bars + '</svg>';
+    }
+
+    function buoyStatLinesHtml(dayStr, units) {
+        let html = '';
+        Object.keys(nearbyBuoys).forEach((id) => {
+            const meta = nearbyBuoys[id];
+            const sum = summarizeBuoyForDay(dayStr, buoyData[id]);
+            if (!sum) {
+                html += '<div class="stat-line"><span>' + meta.short + ' buoy</span><span style="color:var(--muted)">no data this day</span></div>';
+                return;
+            }
+            let extra = formatLenM(sum.maxM, 2, units);
+            if (sum.dpd != null) extra += ' · ' + sum.dpd.toFixed(0) + ' s period';
+            if (sum.mwd != null) extra += ' · ' + degToCompass(sum.mwd);
+            if (sum.wspdKmh != null) extra += ' · wind ' + Math.round(sum.wspdKmh) + ' km/h';
+            html += '<div class="stat-line"><span>' + meta.short + ' buoy (' + id + ')</span><span>' + extra + '</span></div>';
+        });
+        return html;
+    }
+
+    function makeBuoyIcon() {
+        return L.divIcon({
+            className: 'buoy-pin',
+            html: '<div class="buoy-diamond"></div>',
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+        });
+    }
+
+    function buildHourlyWaveBars(dayStr, hourlyM, spot, cal) {
+        const bars = [];
+        for (let h = 0; h < 24; h++) bars.push({ h: h, swellM: null, predictedFt: null });
+        if (!hourlyM || !hourlyM.time) return bars;
+        hourlyM.time.forEach((t, i) => {
+            if (!t.startsWith(dayStr)) return;
+            const h = parseInt(t.slice(11, 13), 10);
+            if (h < 0 || h > 23) return;
+            const sh = pickHourlyHeight(hourlyM, i, cal);
+            const sd = hourlyM.swell_wave_direction?.[i] ?? hourlyM.wave_direction?.[i];
+            const sp = hourlyM.swell_wave_period?.[i] ?? hourlyM.wave_period?.[i];
+            if (sh != null) bars[h].swellM = sh;
+            if (sh != null && sd != null) {
+                bars[h].predictedFt = calculateSurf(sh, sd, sp, spot, cal);
+            }
+        });
+        return bars;
+    }
+
+    function drawWaveBarSVG(bars, uid, units) {
+        const u = units || getUnits();
+        const lenU = lenLabel(u);
+        const w = 400;
+        const h = 192;
+        const padL = 36;
+        const padR = 10;
+        const bottom = 158;
+        const chartH = bottom - 26;
+        const maxDisp = Math.max(0.5, ...bars.map((b) => {
+            const s = mToDisplay(b.swellM, u) || 0;
+            const pv = ftToDisplay(b.predictedFt, u) || 0;
+            return Math.max(s, pv);
+        }));
+        const groupW = (w - padL - padR) / 24;
+        const barW = Math.max(2, groupW * 0.32);
+        let grid = '';
+        [0, 0.5, 1].forEach((frac) => {
+            const val = maxDisp * frac;
+            const y = bottom - frac * chartH;
+            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#2a2f3a" stroke-width="1"/>';
+            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#6c7384" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + val.toFixed(1) + '</text>';
+        });
+        let rects = '';
+        const tickHours = [0, 6, 12, 18];
+        let hourAxis = '';
+        bars.forEach((b, hi) => {
+            const x0 = padL + hi * groupW + groupW * 0.1;
+            const swellD = mToDisplay(b.swellM, u);
+            const predD = ftToDisplay(b.predictedFt, u);
+            if (swellD != null) {
+                const bh = (swellD / maxDisp) * chartH;
+                rects += '<rect x="' + x0.toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#7c5cff" rx="1"/>';
+            }
+            if (predD != null && predD > 0) {
+                const bh = (predD / maxDisp) * chartH;
+                rects += '<rect x="' + (x0 + barW + 1).toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#3d9dff" rx="1" opacity="0.9"/>';
+            }
+            if (tickHours.indexOf(b.h) >= 0) {
+                const lx = x0 + barW;
+                hourAxis += '<text x="' + lx.toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">' + formatHourAmPm(b.h) + '</text>';
+            }
+        });
+        const xEnd = padL + 24 * groupW - groupW * 0.1;
+        hourAxis += '<text x="' + xEnd.toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">12 AM</text>';
+        return (
+            '<svg viewBox="0 0 ' + w + ' ' + h + '" class="wave-bar-svg" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
+            + grid
+            + '<text x="' + (padL - 4) + '" y="14" fill="#8b93a5" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + lenU + '</text>'
+            + rects
+            + hourAxis
+            + '</svg>'
+        );
+    }
+
+    function weatherCodeInfo(code) {
+        const c = code == null ? -1 : Number(code);
+        if (c === 0) return { icon: '\u2600\uFE0F', label: 'Clear' };
+        if (c >= 1 && c <= 3) return { icon: '\u26C5', label: 'Partly cloudy' };
+        if (c === 45 || c === 48) return { icon: '\uD83C\uDF2B\uFE0F', label: 'Fog' };
+        if (c >= 51 && c <= 57) return { icon: '\uD83C\uDF27\uFE0F', label: 'Drizzle' };
+        if (c >= 61 && c <= 67) return { icon: '\uD83C\uDF27\uFE0F', label: 'Rain' };
+        if (c >= 71 && c <= 77) return { icon: '\u2744\uFE0F', label: 'Snow' };
+        if (c >= 80 && c <= 82) return { icon: '\uD83C\uDF27\uFE0F', label: 'Showers' };
+        if (c >= 95) return { icon: '\u26C8\uFE0F', label: 'Thunderstorm' };
+        return { icon: '\u2601\uFE0F', label: 'Cloudy' };
+    }
+
+    function tempToDisplay(c, units) {
+        if (c == null || Number.isNaN(c)) return null;
+        return (units || getUnits()) === 'metric' ? c : (c * 9 / 5 + 32);
+    }
+
+    function tempUnitLabel(units) {
+        return (units || getUnits()) === 'metric' ? '\u00b0C' : '\u00b0F';
+    }
+
+    function buildWeatherCardHtml(dayStr, dailyW, hourlyW, wi, units) {
+        const u = units || getUnits();
+        const tLab = tempUnitLabel(u);
+        if (!dailyW || wi < 0) {
+            return '<div class="weather-card"><div class="wx-icon">\u2014</div><div><p class="wx-title">Weather</p><div class="wx-lines">Unavailable</div></div>';
+        }
+        let code = dailyW.weather_code?.[wi];
+        let precip = dailyW.precipitation_sum?.[wi];
+        if (hourlyW && hourlyW.time) {
+            const codes = [];
+            hourlyW.time.forEach((t, i) => {
+                if (!t.startsWith(dayStr)) return;
+                if (hourlyW.weather_code?.[i] != null) codes.push(hourlyW.weather_code[i]);
+            });
+            if (codes.length) {
+                const freq = {};
+                codes.forEach((x) => { freq[x] = (freq[x] || 0) + 1; });
+                code = Number(Object.keys(freq).sort((a, b) => freq[b] - freq[a])[0]);
+            }
+        }
+        const wx = weatherCodeInfo(code);
+        const hi = tempToDisplay(dailyW.temperature_2m_max?.[wi], u);
+        const lo = tempToDisplay(dailyW.temperature_2m_min?.[wi], u);
+        const wmax = dailyW.wind_speed_10m_max?.[wi];
+        const wdir = dailyW.wind_direction_10m_dominant?.[wi];
+        return (
+            '<div class="weather-card">'
+            + '<div class="wx-icon" aria-hidden="true">' + wx.icon + '</div>'
+            + '<div><p class="wx-title">' + wx.label + '</p>'
+            + '<div class="wx-lines">'
+            + (hi != null ? 'Hi <strong>' + Math.round(hi) + tLab + '</strong>' : '')
+            + (lo != null ? ' · Lo <strong>' + Math.round(lo) + tLab + '</strong><br/>' : '<br/>')
+            + (precip != null && precip > 0 ? 'Precip ~<strong>' + precip.toFixed(1) + ' mm</strong><br/>' : '')
+            + 'Wind up to <strong>' + (wmax != null ? Math.round(wmax) + ' km/h' : '\u2014') + '</strong>'
+            + (wdir != null ? ' from <strong>' + degToCompass(wdir) + '</strong> (' + Math.round(wdir) + '\u00b0)' : '')
+            + '</div></div></div>'
+        );
+    }
+
+    function refreshPeerStripLog(strip, spotKey, dayStr) {
+        if (!strip) return;
+        const logEl = strip.querySelector('.peer-log');
+        if (!logEl) return;
+        const flatAll = flattenPeerReviews(spotKey).filter((r) => r.dayStr === dayStr);
+        if (flatAll.length === 0) {
+            logEl.innerHTML = '<em>No votes yet for this date.</em>';
+            return;
+        }
+        const lv = flatAll[flatAll.length - 1].residualFt;
+        const u = getUnits();
+        logEl.innerHTML = '<strong>' + flatAll.length + '</strong> vote(s) (merged). Latest: <strong>'
+            + peerResidualLabel(lv, u) + '</strong>';
+    }
+
+    function showPeerSubmitSuccess(strip) {
+        if (!strip) return;
+        strip.classList.add('peer-submitted');
+        let toast = strip.querySelector('.peer-success-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.className = 'peer-success-toast';
+            toast.innerHTML = '<div class="inner"><div class="check">\u2713</div><span>Field check logged</span></div>';
+            strip.appendChild(toast);
+        }
+        toast.style.display = 'grid';
+        clearTimeout(strip._peerToastTimer);
+        strip._peerToastTimer = setTimeout(() => {
+            toast.style.display = 'none';
+            strip.classList.remove('peer-submitted');
+        }, 2200);
+    }
+
+    function buildMarineRowPlan(daily) {
+        const todayStr = vancouverYMD(new Date());
+        const yStr = vancouverYesterdayYMD();
+        const iYesterday = daily.time.findIndex((t) => t.slice(0, 10) === yStr);
+        let iToday = daily.time.findIndex((t) => t.slice(0, 10) === todayStr);
+        if (iToday < 0) {
+            const fi = daily.time.findIndex((t) => t.slice(0, 10) >= todayStr);
+            iToday = fi >= 0 ? fi : Math.max(0, daily.time.length - 7);
+        }
+        const idxList = [];
+        if (iYesterday >= 0 && yStr < todayStr) idxList.push(iYesterday);
+        for (let k = 0; k < 7; k++) idxList.push(iToday + k);
+        const seen = new Set();
+        const rows = [];
+        idxList.forEach((ii) => {
+            if (ii < 0 || ii >= daily.time.length) return;
+            const ds = daily.time[ii].slice(0, 10);
+            if (seen.has(ds)) return;
+            seen.add(ds);
+            let badge = '';
+            if (ds === yStr) badge = 'Yesterday';
+            else if (ds === todayStr) badge = 'Today';
+            rows.push({ i: ii, dayStr: ds, badge });
+        });
+        rows.sort((a, b) => a.dayStr.localeCompare(b.dayStr));
+        return rows;
+    }
+
+    function drawTideSVG(allSeries, hiloEvents, uid, dayStr, units) {
+        const chart = buildTideDayChart(allSeries, dayStr);
+        if (!chart.pts.length) {
+            return '<p style="color:#666;font-size:0.75rem;margin:0;padding:0.5rem;">Tide curve unavailable for this day.</p>';
+        }
+        const u = units || getUnits();
+        const lenU = lenLabel(u);
+        const safeId = 'g' + String(uid == null ? '0' : uid).replace(/[^a-zA-Z0-9_-]/g, '');
+        const w = 400;
+        const totalH = 148;
+        const chartTop = 22;
+        const chartH = 78;
+        const chartBottom = chartTop + chartH;
+        const axisY = 116;
+        const padL = 34;
+        const padR = 10;
+        const t0 = chart.t0;
+        const t1 = chart.t1;
+        const pts = chart.pts;
+        const disp = pts.map((p) => ({ t: p.t, v: mToDisplay(p.v, u) }));
+        const vmin = Math.min(...disp.map((p) => p.v));
+        const vmax = Math.max(...disp.map((p) => p.v));
+        const vr = Math.max(vmax - vmin, (u === 'metric' ? 0.2 : 0.65));
+        const now = Date.now();
+        const scaleX = (t) => padL + ((t - t0) / (t1 - t0)) * (w - padL - padR);
+        const scaleY = (v) => chartTop + (1 - (v - vmin) / vr) * chartH;
+
+        const linePts = disp.map((p) => scaleX(p.t).toFixed(1) + ',' + scaleY(p.v).toFixed(1)).join(' ');
+        let fillD = 'M ' + scaleX(t0).toFixed(1) + ',' + chartBottom;
+        disp.forEach((p) => {
+            fillD += ' L ' + scaleX(p.t).toFixed(1) + ',' + scaleY(p.v).toFixed(1);
+        });
+        fillD += ' L ' + scaleX(t1).toFixed(1) + ',' + chartBottom + ' Z';
+        const gid = 'tideGrad_' + safeId + '_' + String(t0 % 100000);
+
+        let grid = '';
+        [0, 0.5, 1].forEach((frac) => {
+            const val = vmin + vr * frac;
+            const y = chartBottom - frac * chartH;
+            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#2a2f3a" stroke-width="1"/>';
+            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#6c7384" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + val.toFixed(1) + '</text>';
+        });
+        grid += '<text x="' + (padL - 4) + '" y="14" fill="#8b93a5" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + lenU + '</text>';
+
+        const tickEls = svgPacificHourTicks(t0, t1, scaleX, chartTop, chartBottom, axisY);
+
+        const timeFmt = new Intl.DateTimeFormat('en-CA', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Vancouver' });
+        let markEls = '';
+        (hiloEvents || []).forEach((e) => {
+            const tm = e.t.getTime();
+            if (tm < t0 || tm >= t1) return;
+            const x = scaleX(tm);
+            const isH = e.type === 'high';
+            const isL = e.type === 'low';
+            const stroke = isH ? '#2ee6d6' : isL ? '#a78bfa' : '#7a8499';
+            const vDisp = mToDisplay(e.value, u);
+            markEls += '<line x1="' + x.toFixed(1) + '" y1="' + chartTop + '" x2="' + x.toFixed(1) + '" y2="' + chartBottom + '" stroke="' + stroke + '" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"/>';
+            const tag = isH ? 'H' : isL ? 'L' : '\u00b7';
+            markEls += '<text x="' + x.toFixed(1) + '" y="' + (chartTop - 2) + '" fill="' + stroke + '" font-size="8" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="700">' + tag + ' ' + vDisp.toFixed(1) + lenU + '</text>';
+            markEls += '<text x="' + x.toFixed(1) + '" y="' + (chartTop + 9) + '" fill="#6c7384" font-size="6" text-anchor="middle" font-family="system-ui,sans-serif">' + timeFmt.format(e.t) + '</text>';
+        });
+
+        let nowLine = '';
+        if (now >= t0 && now < t1) {
+            const nx = scaleX(now);
+            nowLine = '<line x1="' + nx.toFixed(1) + '" y1="' + chartTop + '" x2="' + nx.toFixed(1) + '" y2="' + chartBottom + '" stroke="#3d9dff" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.85"/>';
+        }
+
+        return (
+            '<svg viewBox="0 0 ' + w + ' ' + totalH + '" class="tide-svg" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
+                '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
+                '<stop offset="0%" stop-color="#2ee6d6" stop-opacity="0.22"/>' +
+                '<stop offset="100%" stop-color="#2ee6d6" stop-opacity="0"/></linearGradient></defs>' +
+                grid + tickEls +
+                '<path d="' + fillD + '" fill="url(#' + gid + ')"/>' +
+                '<polyline fill="none" stroke="#2ee6d6" stroke-width="2" stroke-linejoin="round" points="' + linePts + '"/>' +
+                markEls + nowLine +
+            '</svg>'
+        );
+    }
+
+    function initCalibrationUI() {
+        const fab = $('cal-fab');
+        const panel = $('cal-panel');
+
+        function updateCalValueLabels() {
+            $('cal-scale-v').textContent = Number($('cal-scale').value).toFixed(2) + '\u00d7';
+            const of = Number($('cal-offset').value);
+            const u = getUnits();
+            const offDisp = ftToDisplay(of, u);
+            $('cal-offset-v').textContent = (offDisp >= 0 ? '+' : '') + offDisp.toFixed(u === 'metric' ? 2 : 1) + ' ' + lenLabel(u);
+            $('cal-period-v').textContent = Number($('cal-period').value).toFixed(2) + '\u00d7';
+            if ($('cal-peer-strength-v')) $('cal-peer-strength-v').textContent = Number($('cal-peer-strength').value) + '%';
+        }
+
+        function refreshPeerStatsInPanel(key) {
+            const el = $('cal-peer-stats');
+            if (!el) return;
+            const st = summarizePeerResiduals(key);
+            const lbl = breaks[key] ? breaks[key].name : key;
+            const u = getUnits();
+            const meanStr = !st.count ? '\u2014' : formatSignedLenFt(st.meanResidualFt, 2, u);
+            const maeStr = !st.count ? '\u2014' : formatSurfFt(st.maeAllTime, 2, u);
+            const apiOk = !!peerApiBase();
+            const poolNote = apiOk
+                ? 'Votes merge local + Cloudflare D1 (<code>PEER_API_BASE</code>).'
+                : 'Local only until <code>PEER_API_BASE</code> is your Worker URL (see <code>worker/</code> folder).';
+            el.innerHTML = '<strong>Peer residuals · ' + lbl + '</strong><br>'
+                + 'Votes (merged): <strong>' + st.count + '</strong>'
+                + ' · Local: <strong>' + st.localCount + '</strong>'
+                + ' · Server: <strong>' + st.remoteCount + '</strong>.<br>'
+                + 'Matches by model ft, period, energy, swell direction &amp; wind vs swell. '
+                + 'Formula: <code>final = model + (blend% × shrink × matched_residual)</code>. '
+                + 'Global mean bias (reference): <strong>' + meanStr + '</strong>. MAE: <strong>'
+                + maeStr + '</strong>. ' + poolNote;
+        }
+
+        syncCalibrationPanel = function (key) {
+            calSyncing = true;
+            const c = getSpotCalibration(key);
+            $('cal-break-name').textContent = breaks[key].name;
+            $('cal-scale').value = String(c.scale);
+            $('cal-offset').value = String(c.offsetFt);
+            $('cal-period').value = String(c.periodInfluence);
+            $('cal-source').value = c.heightSource || 'swell';
+            if ($('cal-peer-on')) $('cal-peer-on').checked = !!c.peerCorrectionEnabled;
+            if ($('cal-peer-strength')) $('cal-peer-strength').value = String(c.peerCorrectionStrength ?? 35);
+            calSyncing = false;
+            updateCalValueLabels();
+            refreshPeerStatsInPanel(key);
+        };
+
+        function persistFromPanel() {
+            if (calSyncing) return;
+            const key = $('break-selector').value;
+            saveSpotCalibration(key, {
+                scale: Number($('cal-scale').value),
+                offsetFt: Number($('cal-offset').value),
+                periodInfluence: Number($('cal-period').value),
+                heightSource: $('cal-source').value,
+                peerCorrectionEnabled: $('cal-peer-on') && $('cal-peer-on').checked,
+                peerCorrectionStrength: Number(($('cal-peer-strength') && $('cal-peer-strength').value) ? $('cal-peer-strength').value : 35),
+            });
+            updateCalValueLabels();
+            refreshPeerStatsInPanel(key);
+            if (marineData) render(key, breaks[key]);
+        }
+
+        fab.addEventListener('click', () => {
+            const hidden = panel.classList.toggle('hidden');
+            fab.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+            if (!hidden) syncCalibrationPanel($('break-selector').value);
+        });
+
+        ['cal-scale', 'cal-offset', 'cal-period', 'cal-source', 'cal-peer-strength'].forEach((id) => {
+            const el = $(id);
+            if (el) {
+                el.addEventListener('input', persistFromPanel);
+                el.addEventListener('change', persistFromPanel);
+            }
+        });
+        if ($('cal-peer-on')) $('cal-peer-on').addEventListener('change', persistFromPanel);
+
+        $('cal-reset-spot').addEventListener('click', () => {
+            const key = $('break-selector').value;
+            resetCalibration(key);
+            syncCalibrationPanel(key);
+            if (marineData) render(key, breaks[key]);
+        });
+
+        $('cal-reset-all').addEventListener('click', () => {
+            resetAllCalibration();
+            const key = $('break-selector').value;
+            syncCalibrationPanel(key);
+            if (marineData) render(key, breaks[key]);
+        });
+
+        updateCalValueLabels();
+    }
+
+    function makeBreakIcon(active) {
+        return L.divIcon({
+            className: 'break-pin' + (active ? ' active' : ''),
+            html: '<div class="pin-dot"></div>',
+            iconSize: [14, 14],
+            iconAnchor: [7, 7],
+        });
+    }
+    function latLngFromBearing(lat, lon, bearingDeg, distKm) {
+        const R = 6371;
+        const br = (bearingDeg * Math.PI) / 180;
+        const lat1 = (lat * Math.PI) / 180;
+        const lon1 = (lon * Math.PI) / 180;
+        const lat2 = Math.asin(
+            Math.sin(lat1) * Math.cos(distKm / R)
+            + Math.cos(lat1) * Math.sin(distKm / R) * Math.cos(br)
+        );
+        const lon2 = lon1 + Math.atan2(
+            Math.sin(br) * Math.sin(distKm / R) * Math.cos(lat1),
+            Math.cos(distKm / R) - Math.sin(lat1) * Math.sin(lat2)
+        );
+        return [lat2 * 180 / Math.PI, lon2 * 180 / Math.PI];
+    }
+
+    function makeDirArrowIcon(travelDeg, kind) {
+        const rot = travelDeg == null ? 0 : travelDeg;
+        const cls = kind === 'swell' ? 'map-swell-arrow' : 'map-wind-arrow';
+        return L.divIcon({
+            className: 'map-arrow-icon ' + cls,
+            html: '<div class="map-dir-arrow" style="transform:rotate(' + rot + 'deg)"><span></span></div>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+        });
+    }
+
+    function clearMapDirLayers() {
+        if (mapDirLayers.swell) { map.removeLayer(mapDirLayers.swell); mapDirLayers.swell = null; }
+        if (mapDirLayers.wind) { map.removeLayer(mapDirLayers.wind); mapDirLayers.wind = null; }
+    }
+
+    function syncBreakMarkerPositions() {
+        if (!map) return;
+        Object.keys(breaks).forEach((k) => {
+            const br = breaks[k];
+            const m = mapMarkers[k];
+            if (m && br) m.setLatLng([br.lat, br.lon]);
+        });
+    }
+
+    /** Offset from beach pin seaward (coastNormal) — swell farther out, wind nearer shore. */
+    function beachOffshoreLatLng(b, distKm, bearingOffsetDeg) {
+        let bearing = b.coastNormal != null ? b.coastNormal : 270;
+        if (bearingOffsetDeg) bearing = (bearing + bearingOffsetDeg + 360) % 360;
+        return latLngFromBearing(b.lat, b.lon, bearing, distKm);
+    }
+
+    function swellArrowLatLng(b) {
+        if (b.swellArrowLat != null && b.swellArrowLon != null) return [b.swellArrowLat, b.swellArrowLon];
+        const dist = b.swellDistKm != null ? b.swellDistKm : 1.25;
+        return beachOffshoreLatLng(b, dist, 0);
+    }
+
+    function windArrowLatLng(b) {
+        if (b.windArrowLat != null && b.windArrowLon != null) return [b.windArrowLat, b.windArrowLon];
+        const dist = b.windDistKm != null ? b.windDistKm : 0.36;
+        return beachOffshoreLatLng(b, dist, 22);
+    }
+
+    function focusBreakOnMap(key, b, swellDir, windDir) {
+        if (!map) return;
+        Object.keys(mapMarkers).forEach((k) => {
+            if (mapMarkers[k]) mapMarkers[k].setIcon(makeBreakIcon(k === key));
+        });
+        map.flyTo([b.lat, b.lon], 12, { duration: 0.75 });
+        const activeMarker = mapMarkers[key];
+        if (activeMarker) {
+            activeMarker.setLatLng([b.lat, b.lon]);
+            activeMarker.bindPopup('<b>' + b.name + '</b><br>' + b.shape).openPopup();
+        }
+        clearMapDirLayers();
+        if (swellDir != null) {
+            const p = swellArrowLatLng(b);
+            mapDirLayers.swell = L.marker(p, {
+                icon: makeDirArrowIcon(travelBearing(swellDir), 'swell'),
+                zIndexOffset: 500,
+            }).addTo(map);
+        }
+        if (windDir != null) {
+            const p = windArrowLatLng(b);
+            mapDirLayers.wind = L.marker(p, {
+                icon: makeDirArrowIcon(travelBearing(windDir), 'wind'),
+                zIndexOffset: 480,
+            }).addTo(map);
+        }
+    }
+
+
+    function initMapLegend() {
+        const leg = $('map-legend');
+        const btn = $('map-legend-toggle');
+        if (!leg || !btn) return;
+        if (localStorage.getItem('bamfieldMapLegendHidden') === '1') leg.classList.add('collapsed');
+        btn.setAttribute('aria-expanded', leg.classList.contains('collapsed') ? 'false' : 'true');
+        btn.onclick = () => {
+            leg.classList.toggle('collapsed');
+            const hidden = leg.classList.contains('collapsed');
+            btn.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+            localStorage.setItem('bamfieldMapLegendHidden', hidden ? '1' : '0');
+        };
+    }
+
+    function initMap() {
+        map = L.map('map', { zoomControl: true, scrollWheelZoom: false }).setView([48.8, -125.14], 11);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap' }).addTo(map);
+        mapMarkers = {};
+        Object.keys(breaks).forEach((k) => {
+            const br = breaks[k];
+            const m = L.marker([br.lat, br.lon], { icon: makeBreakIcon(k === 'pachena_park') }).addTo(map);
+            m.bindPopup('<b>' + br.name + '</b><br>' + (br.shape || ''));
+            m.on('click', () => {
+                if ($('break-selector').value !== k) {
+                    $('break-selector').value = k;
+                    updateForecast(k);
+                }
+            });
+            mapMarkers[k] = m;
+        });
+        syncBreakMarkerPositions();
+        buoyMarkers = {};
+        Object.keys(nearbyBuoys).forEach((id) => {
+            const bu = nearbyBuoys[id];
+            const rows = buoyData[id] || [];
+            const latest = rows.length ? rows[rows.length - 1] : null;
+            let pop = '<b>' + bu.name + '</b> (' + id + ')<br/><span style="color:#8b93a5">' + bu.note + '</span>';
+            if (latest && latest.wvhtM != null) {
+                pop += '<br/>Latest wave: <b>' + latest.wvhtM.toFixed(1) + ' m</b>';
+                if (latest.dpd != null) pop += ' @ ' + latest.dpd.toFixed(0) + 's';
+            }
+            const bm = L.marker([bu.lat, bu.lon], { icon: makeBuoyIcon(), zIndexOffset: 400 }).addTo(map);
+            bm.bindPopup(pop);
+            buoyMarkers[id] = bm;
+        });
+        map.whenReady(() => { map.invalidateSize(); });
+    }
+
+    function applyGate() {
+        const gate = $('gate');
+        const main = $('main-app');
+        if (sessionStorage.getItem(STORAGE_KEY) === '1') {
+            gate.classList.add('hidden');
+            main.style.display = 'block';
+            return;
+        }
+        $('gate-btn').onclick = () => {
+            const v = ($('gate-pass').value || '').trim();
+            $('gate-err').textContent = '';
+            if (v === LOCAL_PASSPHRASE) {
+                sessionStorage.setItem(STORAGE_KEY, '1');
+                gate.classList.add('hidden');
+                main.style.display = 'block';
+                initApp();
+            } else {
+                $('gate-err').textContent = 'That didn\u2019t match. Ask a local for the current phrase.';
+            }
+        };
+        $('gate-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('gate-btn').click(); });
+    }
+
+    function initApp() {
+        initPeerDelegation();
+        initCalibrationUI();
+        initMap();
+        initMapLegend();
+        const unitSel = $('unit-toggle');
+        if (unitSel) {
+            unitSel.value = getUnits();
+            unitSel.onchange = () => {
+                setUnits(unitSel.value);
+                const key = $('break-selector').value;
+                syncCalibrationPanel(key);
+                if (marineData) render(key, breaks[key]);
+            };
+        }
+        $('break-selector').onchange = (e) => updateForecast(e.target.value);
+        updateForecast('pachena_park');
+    }
+
+    async function updateForecast(key) {
+        const myToken = ++loadToken;
+        const b = breaks[key];
+        b.id = key;
+        if (map) {
+            focusBreakOnMap(key, b, null, null);
+        }
+
+        const wrap = $('forecast-wrapper');
+        const errSlot = $('error-slot');
+        const status = $('status-bar');
+        wrap.innerHTML = '';
+        errSlot.innerHTML = '';
+        status.innerHTML = '<span class="pill">Loading models\u2026</span>';
+        for (let i = 0; i < 5; i++) wrap.appendChild(Object.assign(document.createElement('div'), { className: 'skeleton' }));
+
+        const from = new Date();
+        const to48 = new Date(Date.now() + 48 * 3600000);
+        const to7 = new Date(Date.now() + 7 * 86400000);
+
+        const marineUrl = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + b.lat + '&longitude=' + b.lon
+            + '&daily=wave_height_max,wave_direction_dominant,wave_period_max,swell_wave_height_max,swell_wave_period_max,wind_wave_height_max'
+            + '&hourly=wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height'
+            + '&past_days=1&forecast_days=10&timezone=America/Vancouver';
+
+        const weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + b.lat + '&longitude=' + b.lon
+            + '&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,wind_direction_10m_dominant,precipitation_sum'
+            + '&hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,precipitation'
+            + '&past_days=1&forecast_days=10&timezone=America/Vancouver';
+
+        let marine = null, weather = null, wlp = null, hilo = null;
+
+        try {
+            const [mr, wr] = await Promise.all([
+                fetch(marineUrl).then((r) => r.json()),
+                fetch(weatherUrl).then((r) => r.json()),
+            ]);
+            marine = mr;
+            weather = wr;
+        } catch (e) {
+            if (myToken !== loadToken) return;
+            wrap.innerHTML = '';
+            status.innerHTML = '';
+            errSlot.innerHTML = '<div class="error-banner">Couldn\u2019t reach Open-Meteo. Check your connection and try again.</div>';
+            return;
+        }
+
+        if (myToken !== loadToken) return;
+
+        if (marine.error || !marine.daily || !marine.hourly) {
+            wrap.innerHTML = '';
+            status.innerHTML = '';
+            errSlot.innerHTML = '<div class="error-banner">Marine forecast error: ' + (marine.reason || marine.error || 'unknown') + '</div>';
+            return;
+        }
+
+        marineData = marine;
+        weatherData = weather && !weather.error && weather.daily ? weather : null;
+
+        buoyData = {};
+        tideWlp = null;
+        tideHilo = null;
+
+        if (myToken !== loadToken) return;
+
+        if (!weatherData) {
+            errSlot.innerHTML = '<div class="error-banner">Weather layer unavailable; swell rows still show.</div>';
+        }
+
+        updateStatusBar(key);
+        render(key, b);
+        syncCalibrationPanel(key);
+
+        const planForTide = buildMarineRowPlan(marine.daily);
+        const bgToken = myToken;
+        (async () => {
+            let wlpB = null;
+            let hiloB = null;
+            if (planForTide.length) {
+                const tStart = vancouverDayBoundsMs(planForTide[0].dayStr).start;
+                const tEnd = vancouverDayBoundsMs(planForTide[planForTide.length - 1].dayStr).end;
+                wlpB = await fetchTideSeries('wlp', new Date(tStart).toISOString(), new Date(tEnd).toISOString());
+                hiloB = await fetchTideSeries('wlp-hilo', new Date(tStart).toISOString(), new Date(tEnd).toISOString());
+            }
+            let buoyB = {};
+            try { buoyB = await fetchAllBuoyData(); } catch (_) {}
+            await fetchPeerReviewsRemote(key);
+            if (bgToken !== loadToken) return;
+            tideWlp = wlpB;
+            tideHilo = hiloB;
+            buoyData = buoyB;
+            if ((!tideWlp || !tideWlp.length) && (!tideHilo || !tideHilo.length)) {
+                errSlot.innerHTML += '<div class="error-banner">Tide data unavailable. Run <code>npm run deploy</code> in the <code>worker/</code> folder, then refresh.</div>';
+            }
+            updateStatusBar(key);
+            refreshBuoyMarkers();
+            render(key, b);
+        })();
+    }
+
+    function updateStatusBar(key) {
+        const status = $('status-bar');
+        if (!status || !marineData) return;
+        status.innerHTML =
+            '<span class="pill"><strong>Open-Meteo</strong> marine + forecast</span>' +
+            '<span class="pill"><strong>CHS IWLS</strong> Bamfield #08545' + ((tideWlp && tideWlp.length) || (tideHilo && tideHilo.length) ? '' : ' (loading)') + '</span>' +
+            '<span class="pill">Updated ' + new Date().toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' }) + '</span>' +
+            '<span class="pill"><strong>La Perouse</strong> ' + ((buoyData[LA_PEROUSE_BUOY] || []).length ? 'live' : 'loading') + '</span>' +
+            (peerApiBase() ? '<span class="pill"><strong>Peer API</strong> connected</span>' : '');
+    }
+
+    function refreshBuoyMarkers() {
+        if (!map) return;
+        Object.keys(nearbyBuoys).forEach((id) => {
+            const bu = nearbyBuoys[id];
+            const bm = buoyMarkers[id];
+            if (!bm || !bu) return;
+            const rows = buoyData[id] || [];
+            const latest = rows.length ? rows[rows.length - 1] : null;
+            let pop = '<b>' + bu.name + '</b> (' + id + ')<br/><span style="color:#8b93a5">' + bu.note + '</span>';
+            if (latest && latest.wvhtM != null) {
+                pop += '<br/>Latest: <b>' + formatLenM(latest.wvhtM, 2, getUnits()) + '</b>';
+                if (latest.dpd != null) pop += ' @ ' + latest.dpd.toFixed(0) + 's';
+            }
+            bm.setPopupContent(pop);
+        });
+    }
+
+    function render(key, b) {
+        const wrapper = $('forecast-wrapper');
+        const errSlot = $('error-slot');
+        try {
+        const daily = marineData.daily;
+        const hourlyM = marineData.hourly;
+        const hourlyW = weatherData && weatherData.hourly;
+        const dailyW = weatherData && weatherData.daily;
+        wrapper.innerHTML = '';
+
+        const hiloTagged = tideHilo ? classifyHilo(tideHilo) : [];
+
+        const cal = getSpotCalibration(key);
+        let hiloOnChart = [];
+        if (tideWlp && tideWlp.length) {
+            const tA = new Date(tideWlp[0].eventDate).getTime();
+            const tB = new Date(tideWlp[tideWlp.length - 1].eventDate).getTime();
+            hiloOnChart = hiloTagged.filter((e) => {
+                const tm = e.t.getTime();
+                return tm >= tA && tm <= tB;
+            });
+        }
+
+        const plan = buildMarineRowPlan(daily);
+        if (!plan.length) {
+            wrapper.innerHTML = '<div class="error-banner">No days returned from the marine model. Try refreshing.</div>';
+            return;
+        }
+        const yesterdayStr = vancouverYesterdayYMD();
+        const todayStrPeer = vancouverYMD(new Date());
+        let mapSwellDirForFocus = null;
+        let mapWindDirForFocus = null;
+
+        plan.forEach((rp, rx) => {
+            const i = rp.i;
+            const dayStr = rp.dayStr;
+            const best = summarizeHourlyForDay(daily.time[i], hourlyM, hourlyW, b, cal);
+            const dom = daily.wave_direction_dominant[i];
+            const pMax = daily.swell_wave_period_max[i] || daily.wave_period_max[i];
+            const hd = pickDailyHeightMax(daily, i, cal);
+            const fallbackFt = calculateSurf(hd, dom, pMax, b, cal);
+            const surfBeforePeer = best.ft > 0 ? best.ft : fallbackFt;
+
+            const hDaily = daily.wave_height_max[i];
+            const pDom = daily.wave_period_max[i];
+            const energy = hDaily != null && pDom != null ? Math.round(hDaily * hDaily * pDom * 0.5 * 10) / 10 : null;
+
+            const swellDirPeer = best.dir != null ? best.dir : dom;
+            const windDirPeer = best.wdir;
+            const peerCtx = {
+                modelFt: surfBeforePeer,
+                periodS: best.p != null ? best.p : pMax,
+                energyKj: energy,
+                swellDirDeg: swellDirPeer,
+                windDirDeg: windDirPeer,
+                windSpeedKmh: best.wind,
+                windSwellAngleDeg: (windDirPeer != null && swellDirPeer != null)
+                    ? angleDiff(windDirPeer, swellDirPeer) : null,
+            };
+            const peerOut = finalizeSurfWithPeer(surfBeforePeer, key, cal, peerCtx);
+            const surfFt = peerOut.ft;
+            const peerMeta = peerOut.peer;
+
+            const wi = weatherDailyIndex(dayStr, dailyW);
+            const units = getUnits();
+            const weatherCard = buildWeatherCardHtml(dayStr, dailyW, hourlyW, wi, units);
+            const waveBars = buildHourlyWaveBars(dayStr, hourlyM, b, cal);
+            if (dayStr === todayStrPeer || rp.badge === 'Today') {
+                mapSwellDirForFocus = swellDirPeer;
+                mapWindDirForFocus = windDirPeer != null ? windDirPeer
+                    : (dailyW && dailyW.wind_direction_10m_dominant && wi >= 0
+                        ? dailyW.wind_direction_10m_dominant[wi] : null);
+            }
+            const dayHilos = hiloTagged.filter((e) => vancouverYMD(e.t) === dayStr).slice(0, 10);
+            const hiloPills = dayHilos.length
+                ? dayHilos.map((e) => {
+                    const tim = e.t.toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Vancouver' });
+                    const cls = e.type === 'high' ? 'hi' : e.type === 'low' ? 'lo' : '';
+                    const lab = e.type === 'high' ? 'High' : e.type === 'low' ? 'Low' : 'Slack';
+                    return '<span class="' + cls + '">' + lab + ' ' + formatLenM(e.value, 2, units) + ' · ' + tim + '</span>';
+                }).join('')
+                : '<span>No HI/LO extrema for this day in the CHS feed (try neighbours).</span>';
+
+            const badgeHtml = rp.badge ? '<div class="y-badge">' + rp.badge + '</div>' : '';
+            const dateLab = new Date(dayStr + 'T12:00:00').toLocaleDateString('en-CA', { weekday: 'short', month: 'short', day: 'numeric' });
+
+            let peerExplain = '';
+            if (peerMeta && Math.abs(peerMeta.appliedAdjFt) > 0.005) {
+                const adj = peerMeta.appliedAdjFt;
+                const raw = peerMeta.rawResidualFt;
+                const shrinkPct = Math.round(peerMeta.shrink * 100);
+                peerExplain = '<div class="stat-line"><span>Community adjustment</span><span>'
+                    + formatSignedLenFt(adj, 2, units)
+                    + ' (' + peerMeta.blendPct + '% of matched residual '
+                    + formatSignedLenFt(raw, 2, units) + ', shrink ' + shrinkPct + '%)</span></div>'
+                    + '<div class="stat-line" style="opacity:0.85;"><span>Matched votes</span><span>'
+                    + peerMeta.count + ' total, effective weight ' + peerMeta.effectiveWeight.toFixed(1)
+                    + (peerMeta.usedGlobalFallback ? ' (sparse match, global fallback)' : '')
+                    + '</span></div>';
+            }
+
+            const modelSnapRounded = Math.round(surfBeforePeer * 100) / 100;
+            const peerBlock = peerSectionHtml(dayStr, todayStrPeer, yesterdayStr, key, modelSnapRounded, peerCtx, units);
+
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'day-row';
+            row.setAttribute('aria-expanded', 'false');
+            row.dataset.swellDir = swellDirPeer != null ? String(swellDirPeer) : '';
+            row.dataset.windDir = windDirPeer != null ? String(windDirPeer) : '';
+            row.innerHTML = `
+                <div class="date-col">${dateLab}${badgeHtml}</div>
+                <div class="surf-col">${formatSurfFt(surfFt, 1, units)}<span class="surf-sub">estimate (${cal.peerCorrectionEnabled ? 'calibrated · peers' : 'calibrated'})</span></div>
+                <div class="energy-col">${best.dir != null ? degToCompass(best.dir) + ' @ peak' : degToCompass(dom)}<br/>${best.p != null ? best.p.toFixed(0) + 's' : (pMax != null ? pMax.toFixed(0) + 's' : '')}${energy != null ? '<br/><span style="opacity:0.85;font-size:0.68rem;">~' + energy + ' kJ</span>' : ''}</div>
+                <div class="chev">+</div>`;
+
+            const details = document.createElement('div');
+            details.className = 'details';
+            details.innerHTML = `
+                <div>
+                    <h3>Ocean &amp; model</h3>
+                    <div class="stat-line"><span>Your model (pre-peer)</span><span>${formatSurfFt(surfBeforePeer, 2, units)}</span></div>
+                    ${peerExplain}
+                    <div class="stat-line"><span>Peak swell (hourly scan)</span><span>${best.swell != null ? formatLenM(best.swell, 2, units) : '\u2014'}</span></div>
+                    <div class="stat-line"><span>Direction @ peak</span><span>${best.dir != null ? degToCompass(best.dir) + ' (' + Math.round(best.dir) + '\u00b0)' : '\u2014'}</span></div>
+                    <div class="stat-line"><span>Period @ peak</span><span>${best.p != null ? best.p.toFixed(0) + ' s' : '\u2014'}</span></div>
+                    <div class="stat-line"><span>Daily dominant (ref)</span><span>${degToCompass(dom)} (${Math.round(dom)}\u00b0)</span></div>
+                    <div class="stat-line"><span>Wind chop (daily max)</span><span>${daily.wind_wave_height_max[i] != null ? formatLenM(daily.wind_wave_height_max[i], 2, units) : '\u2014'}</span></div>
+                    <div class="stat-line"><span>Wind vs swell @ peak</span><span>${windVsSwellLabel(best.wdir, best.dir)}</span></div>
+                    ${buoyStatLinesHtml(dayStr, units)}
+                    <p class="quality-note"><strong>${b.shape}.</strong> ${b.seabed}</p>
+                    ${peerBlock}
+                </div>
+                <div class="tide-wrap">
+                    <div class="chart-block">
+                        <div class="chart-head"><h3 style="margin:0;border:0;padding:0;">Waves · 24h</h3>
+                        <span class="chart-legend">12 AM–12 AM · <i class="lg-swell"></i> swell <i class="lg-predicted"></i> predicted surf</span></div>
+                        <div class="wave-bar-container">${drawWaveBarSVG(waveBars, rx, units)}</div>
+                    </div>
+                    <div class="chart-block">
+                        <div class="chart-head"><h3 style="margin:0;border:0;padding:0;">La Perouse buoy · 24h</h3>
+                        <span class="chart-legend"><i class="lg-buoy-lp"></i> observed sea height (NDBC 46206)</span></div>
+                        <div class="buoy-chart-container">${drawBuoyWaveSVG(dayStr, rx, units)}</div>
+                    </div>
+                    <div class="chart-block">
+                        <div class="chart-head"><h3 style="margin:0;border:0;padding:0;">Tide · 24h</h3>
+                        <span class="chart-legend">12 AM–12 AM Pacific</span></div>
+                        <div class="tide-container">${drawTideSVG(tideChartSeries(tideWlp, dayHilos), dayHilos, rx, dayStr, units)}</div>
+                        <div class="tide-meta"><span>12 AM – 12 AM · H/L markers</span><span>Blue dashed = now</span></div>
+                    </div>
+                    <div class="tide-pills">${hiloPills}</div>
+                    ${weatherCard}
+                </div>`;
+
+            wrapper.appendChild(row);
+            wrapper.appendChild(details);
+
+            row.addEventListener('click', (ev) => {
+                if (ev.target.closest('.peer-strip')) return;
+                const open = row.classList.toggle('open');
+                details.classList.toggle('visible', open);
+                row.setAttribute('aria-expanded', open ? 'true' : 'false');
+                if (open && map) {
+                    const sd = row.dataset.swellDir !== '' ? Number(row.dataset.swellDir) : swellDirPeer;
+                    const wd = row.dataset.windDir !== '' ? Number(row.dataset.windDir) : windDirPeer;
+                    focusBreakOnMap(key, b, Number.isFinite(sd) ? sd : null, Number.isFinite(wd) ? wd : null);
+                }
+            });
+        });
+
+        syncBreakMarkerPositions();
+        focusBreakOnMap(key, b, mapSwellDirForFocus, mapWindDirForFocus);
+        if (map) {
+            map.invalidateSize();
+            refreshBuoyMarkers();
+        }
+        } catch (err) {
+            console.error('render failed', err);
+            wrapper.innerHTML = '';
+            errSlot.innerHTML = '<div class="error-banner">Could not build forecast rows. Try a hard refresh (Ctrl+F5). '
+                + (err && err.message ? err.message : '') + '</div>';
+        }
+    }
+
+    applyGate();
+    if (sessionStorage.getItem(STORAGE_KEY) === '1') {
+        document.getElementById('main-app').style.display = 'block';
+        initApp();
+    }
+})();
+</script>
+</body>
+</html>

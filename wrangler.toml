@@ -1,0 +1,11 @@
+# Cloudflare Worker + D1 for Bamfield peer reviews
+# Docs: https://developers.cloudflare.com/d1/
+
+name = "bamfield-peer-api"
+main = "src/index.js"
+compatibility_date = "2024-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bamfieldsurfreport"
+database_id = "244b83a6-bd19-4312-9b71-e84f8bc4b2b1"
