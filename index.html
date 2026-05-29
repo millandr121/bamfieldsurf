@@ -629,6 +629,36 @@
             0% { background-position: 0% center; }
             100% { background-position: 300% center; }
         }
+        .kook-shaka {
+            display: inline-block;
+            font-size: 0.85em;
+            animation: shakaWave 1.8s ease-in-out infinite;
+            transform-origin: center bottom;
+            -webkit-text-fill-color: initial;
+        }
+        @keyframes shakaWave {
+            0%, 100% { transform: rotate(-15deg) scale(1); }
+            25% { transform: rotate(20deg) scale(1.1); }
+            50% { transform: rotate(-10deg) scale(1); }
+            75% { transform: rotate(18deg) scale(1.05); }
+        }
+        .map-corner-icon {
+            position: absolute;
+            top: -16px; left: -4px;
+            z-index: 600;
+            font-size: 2.2rem; line-height: 1;
+            filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
+            animation: bobble 3s ease-in-out infinite;
+            pointer-events: none;
+        }
+        .forecast-corner-icon {
+            font-size: 1.8rem; line-height: 1;
+            display: block;
+            margin-bottom: -0.5rem;
+            margin-left: 0.25rem;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));
+            animation: bobble 2.5s ease-in-out infinite;
+        }
 
         .guide-wave {
             font-size: 1.8rem;
@@ -822,7 +852,7 @@
 <div id="main-app" class="app-wrap" style="display:none">
     <header>
         <div>
-            <h1 class="kookcast-title">KOOKCAST</h1>
+            <h1 class="kookcast-title"><span class="kook-shaka">🤙</span> KOOKCAST <span class="kook-shaka">🤙</span></h1>
             <p class="tagline">Bamfield's west coast swell oracle.</p>
         </div>
         <div class="controls">
@@ -856,6 +886,7 @@
     </header>
 
     <div class="map-wrap">
+        <div class="map-corner-icon" aria-hidden="true">🗺️</div>
         <div id="map"></div>
         <div class="map-legend" id="map-legend" role="region" aria-label="Map guide">
             <div class="map-legend-title">Map guide</div>
@@ -882,6 +913,7 @@
     </div>
     <div class="status-bar" id="status-bar"></div>
     <div id="error-slot"></div>
+    <div class="forecast-corner-icon" aria-hidden="true">📋</div>
     <div id="forecast-wrapper" class="forecast-list"></div>
 
     <button type="button" class="cal-fab" id="cal-fab" title="Calibration (per-spot tuning)" aria-expanded="false" aria-controls="cal-panel">⌗</button>
@@ -942,7 +974,7 @@
     <div id="guide-overlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
         <div class="guide-card">
             <div class="guide-header">
-                <h2 id="guide-title"><span class="guide-wave">🤙</span> <span class="guide-kook-badge">KOOKCAST</span> Guide</h2>
+                <h2 id="guide-title"><span class="guide-wave">🏄</span> <span class="guide-kook-badge">KOOKCAST</span> Guide</h2>
                 <button type="button" id="guide-close" class="guide-close" aria-label="Close guide">✕</button>
             </div>
             <div class="guide-nav" id="guide-nav"></div>
@@ -3212,7 +3244,7 @@
             {
                 title: '🤙 Welcome, Kook!',
                 content: `
-<span class="guide-surf-icon">🏄</span>
+
 <h3>You just paddled into the most technical surf forecast on the west coast of Vancouver Island.</h3>
 <p>And yes, we called you a kook. It's a term of endearment here. <strong>A kook is anyone learning, adapting, getting barrelled, or just showing up.</strong> This app is for you.</p>
 <p>Kookcast is built hyper-specifically for <strong>Bamfield-area breaks</strong> — we're not trying to forecast Tofino or half of BC. Just these gnarly local spots, with physics tuned to each beach's unique quirks.</p>
@@ -3229,7 +3261,7 @@
             {
                 title: '📡 How Kookcast Predicts Waves',
                 content: `
-<span class="guide-surf-icon">🌊</span>
+
 <p>Here's where it gets nerdy. Strap in.</p>
 <h3>From open ocean to your local break</h3>
 <p>The forecast pipeline has three stages: raw model data → spot translation → local calibration.</p>
@@ -3251,7 +3283,7 @@
             {
                 title: '📊 Chart School (No Kooks Allowed... jk)',
                 content: `
-<span class="guide-surf-icon">📈</span>
+
 <h3>Three charts, three layers of information</h3>
 <p>Expand any forecast day to see the charts. Hover over any chart to see exact values at that time.</p>
 <h4>Waves · 24h (purple/blue bar chart)</h4>
@@ -3300,7 +3332,7 @@
             {
                 title: '⚙️ Dial It In',
                 content: `
-<span class="guide-surf-icon">🔧</span>
+
 <h3>Tuning the model to what you see</h3>
 <p>Click the <strong>⌗ button</strong> (top right) to open the Calibration panel. These settings are stored in <em>your browser only</em> and only affect what you see.</p>
 <h4>Size scale (0.5× – 1.5×)</h4>
@@ -3321,7 +3353,7 @@
             {
                 title: '👥 The Kook Collective',
                 content: `
-<span class="guide-surf-icon">🤝</span>
+
 <p>Every local who logs a surf check makes the model smarter for everyone. It's crowd-sourced calibration — and it's how Kookcast gets better over winter.</p>
 <h4>How to log a field check</h4>
 <p>Expand any forecast row for today or yesterday. At the bottom of the details panel, you'll see the <strong>"Field check"</strong> section. You can:</p>
@@ -3343,7 +3375,7 @@
             {
                 title: '📍 Know Your Breaks',
                 content: `
-<span class="guide-surf-icon">🗺️</span>
+
 <h3>Know your spots</h3>
 <p>Use the <strong>break selector</strong> in the top controls to switch between spots. The map updates to show swell and wind direction arrows for the selected break.</p>
 <h4>Pachena — Park side</h4>
