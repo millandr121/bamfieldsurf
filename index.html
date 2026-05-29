@@ -652,13 +652,15 @@
             pointer-events: none;
         }
         .forecast-corner-icon {
+            position: absolute;
+            top: -16px; left: -6px;
+            z-index: 10;
             font-size: 1.8rem; line-height: 1;
-            display: block;
-            margin-bottom: -0.5rem;
-            margin-left: 0.25rem;
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));
             animation: cornerBobbleReport 2.5s ease-in-out infinite;
+            pointer-events: none;
         }
+        .forecast-list-wrap { position: relative; }
         @keyframes cornerBobbleMap {
             0%, 100% { transform: rotate(-22.5deg) translateY(0); }
             50% { transform: rotate(-22.5deg) translateY(-4px); }
@@ -921,8 +923,10 @@
     </div>
     <div class="status-bar" id="status-bar"></div>
     <div id="error-slot"></div>
-    <div class="forecast-corner-icon" aria-hidden="true">📋</div>
-    <div id="forecast-wrapper" class="forecast-list"></div>
+    <div class="forecast-list-wrap">
+        <div class="forecast-corner-icon" aria-hidden="true">📋</div>
+        <div id="forecast-wrapper" class="forecast-list"></div>
+    </div>
 
     <button type="button" class="cal-fab" id="cal-fab" title="Calibration (per-spot tuning)" aria-expanded="false" aria-controls="cal-panel">⌗</button>
     <button type="button" class="cal-fab" id="guide-fab" title="How to use this app" aria-expanded="false" style="top:0.65rem;right:3rem;" aria-controls="guide-panel">?</button>
