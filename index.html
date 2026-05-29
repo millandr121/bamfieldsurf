@@ -614,7 +614,7 @@
 
         .kookcast-title {
             font-size: clamp(2.8rem, 8vw, 4.5rem);
-            font-weight: 800;
+            font-weight: 900;
             letter-spacing: -0.03em;
             margin: 0;
             line-height: 1.05;
@@ -644,11 +644,12 @@
         }
         .map-corner-icon {
             position: absolute;
-            top: -16px; left: -4px;
+            top: -18px; left: -6px;
             z-index: 600;
             font-size: 2.2rem; line-height: 1;
             filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
-            animation: bobble 3s ease-in-out infinite;
+            transform: rotate(-40deg);
+            animation: cornerBobble 3s ease-in-out infinite;
             pointer-events: none;
         }
         .forecast-corner-icon {
@@ -657,7 +658,12 @@
             margin-bottom: -0.5rem;
             margin-left: 0.25rem;
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));
-            animation: bobble 2.5s ease-in-out infinite;
+            transform: rotate(-40deg);
+            animation: cornerBobble 2.5s ease-in-out infinite;
+        }
+        @keyframes cornerBobble {
+            0%, 100% { transform: rotate(-40deg) translateY(0); }
+            50% { transform: rotate(-40deg) translateY(-4px); }
         }
 
         .guide-wave {
@@ -852,7 +858,7 @@
 <div id="main-app" class="app-wrap" style="display:none">
     <header>
         <div>
-            <h1 class="kookcast-title"><span class="kook-shaka">🤙</span> KOOKCAST <span class="kook-shaka">🤙</span></h1>
+            <h1 class="kookcast-title">KOOKCAST <span class="kook-shaka">🤙</span></h1>
             <p class="tagline">Bamfield's west coast swell oracle.</p>
         </div>
         <div class="controls">
