@@ -46,7 +46,7 @@
             margin: 0;
             line-height: 1.05;
         }
-        .tagline { font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; font-style: italic; text-align: center; letter-spacing: 0.01em; }
+        .tagline { font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; font-style: italic; letter-spacing: 0.01em; }
 
         .sr-only {
             position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -623,10 +623,11 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: kookRainbow 5s linear infinite;
+            animation: kookRainbow 9s ease-in-out infinite;
         }
         @keyframes kookRainbow {
-            0% { background-position: 0% center; }
+            0%   { background-position: 0% center; }
+            30%  { background-position: 300% center; }
             100% { background-position: 300% center; }
         }
         .kook-shaka {
@@ -863,8 +864,10 @@
 <div id="main-app" class="app-wrap" style="display:none">
     <header>
         <div>
-            <h1 class="kookcast-title" style="display:inline-flex;align-items:center;gap:0.2em;">KOOKCAST <span class="kook-shaka">🤙</span></h1>
-            <p class="tagline">Bamfield's west coast swell oracle.</p>
+            <div style="display:inline-block;position:relative;">
+                <h1 class="kookcast-title" style="display:inline-flex;align-items:center;">KOOKCAST<span class="kook-shaka" style="margin-left:-0.05em;margin-right:-0.1em;">🤙</span></h1>
+                <p class="tagline" style="text-align:right;margin-top:0.05rem;">Bamfield's west coast swell oracle.</p>
+            </div>
         </div>
         <div class="controls">
             <label class="sr-only" for="break-selector">Surf break</label>
