@@ -769,6 +769,34 @@
             border-radius: 0 8px 8px 0; padding: 0.65rem 0.85rem; margin: 0.75rem 0;
             font-size: 0.82rem;
         }
+        .guide-overview-header { margin-bottom: 1.25rem; }
+        .guide-overview-sub { font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; margin: 0; }
+        .guide-chapter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.65rem;
+            margin-top: 0.5rem;
+        }
+        .guide-chapter-tile {
+            display: flex; flex-direction: column; gap: 0.3rem;
+            padding: 0.85rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            background: var(--card);
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .guide-chapter-tile:hover { border-color: var(--accent); background: rgba(37,99,235,0.05); }
+        .tile-num { font-size: 0.7rem; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+        .tile-label { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+        .surf-glossary { margin: 0; padding: 0; }
+        .surf-glossary dt {
+            font-size: 0.85rem; font-weight: 700; color: var(--accent);
+            margin-top: 1rem; margin-bottom: 0.2rem;
+        }
+        .surf-glossary dd {
+            margin: 0 0 0.25rem 0; font-size: 0.82rem; line-height: 1.55; color: var(--text);
+        }
         .guide-footer {
             display: flex; align-items: center; justify-content: space-between;
             padding: 0.85rem 1.5rem;
@@ -3255,155 +3283,185 @@
     function initGuide() {
         const chapters = [
             {
-                title: '🤙 Welcome, Kook!',
+                title: 'Overview',
+                navLabel: 'Overview',
                 content: `
-
-<h3>You just paddled into the most technical surf forecast on the west coast of Vancouver Island.</h3>
-<p>And yes, we called you a kook. It's a term of endearment here. <strong>A kook is anyone learning, adapting, getting barrelled, or just showing up.</strong> This app is for you.</p>
-<p>Kookcast is built hyper-specifically for <strong>Bamfield-area breaks</strong> — we're not trying to forecast Tofino or half of BC. Just these gnarly local spots, with physics tuned to each beach's unique quirks.</p>
-<h4>What you get:</h4>
-<ul>
-<li>🌊 <strong>Spot-specific wave predictions</strong> — each break has its own swell window, multiplier, and seabed behaviour</li>
-<li>🌙 <strong>Real CHS tide data</strong> for Bamfield #08545 — not a generic tidal model</li>
-<li>📡 <strong>Live La Perouse Bank buoy</strong> — your offshore early warning system, ~150km west</li>
-<li>👥 <strong>Peer-calibrated predictions</strong> — locals who paddle out log what they see, and the algorithm learns</li>
-<li>⚙️ <strong>Full personal calibration</strong> — tune every break to match your eyes</li>
-</ul>
-<div class="tip-box"><strong>🔑 Passphrase:</strong> This app is for Bamfield residents and community surfers. Share the passphrase with locals, not the internet.</div>`
+<div class="guide-overview-header">
+  <p class="guide-overview-sub">A hyper-local surf forecast built for Bamfield's west coast breaks — spot-translated wave models, live tide data, offshore buoy readings, and community calibration.</p>
+</div>
+<div class="guide-chapter-grid">
+  <div class="guide-chapter-tile" data-chapter="1"><span class="tile-num">01</span><span class="tile-label">Using the App</span></div>
+  <div class="guide-chapter-tile" data-chapter="2"><span class="tile-num">02</span><span class="tile-label">Forecast Model</span></div>
+  <div class="guide-chapter-tile" data-chapter="3"><span class="tile-num">03</span><span class="tile-label">Charts &amp; Data</span></div>
+  <div class="guide-chapter-tile" data-chapter="4"><span class="tile-num">04</span><span class="tile-label">Tide Preference</span></div>
+  <div class="guide-chapter-tile" data-chapter="5"><span class="tile-num">05</span><span class="tile-label">Calibration</span></div>
+  <div class="guide-chapter-tile" data-chapter="6"><span class="tile-num">06</span><span class="tile-label">Surf Terminology</span></div>
+  <div class="guide-chapter-tile" data-chapter="7"><span class="tile-num">07</span><span class="tile-label">The Breaks</span></div>
+</div>`
             },
             {
-                title: '📡 How Kookcast Predicts Waves',
+                title: '01 · Using the App',
+                navLabel: '01 · App',
                 content: `
-
-<p>Here's where it gets nerdy. Strap in.</p>
-<h3>From open ocean to your local break</h3>
-<p>The forecast pipeline has three stages: raw model data → spot translation → local calibration.</p>
-<h4>Stage 1: Ocean models (Open-Meteo)</h4>
-<p>We pull from the <strong>Open-Meteo Marine API</strong>, which aggregates multiple global wave models (ECMWF ERA5, GFS, etc.). We get hourly data for swell height, swell direction, swell period, and wind wave height at the coordinates of each break.</p>
-<h4>Stage 2: Spot translation formula</h4>
-<p>Raw swell height doesn't equal surf height. Each break has a tuned formula:</p>
-<ul>
-<li><strong>Swell window:</strong> The range of incoming swell directions that hit this beach. Swells outside this window are penalized.</li>
-<li><strong>Multiplier:</strong> How efficiently the spot converts open-ocean swell to rideable waves. Keeha (1.05×) converts well; Pachena Park (0.52×) loses a lot to the bay.</li>
-<li><strong>Period influence:</strong> Longer-period swell (e.g. 16s vs 8s) carries far more energy. A 14s swell at 2m is much more powerful than an 8s swell at 2m.</li>
-<li><strong>West dead zone:</strong> Some spots (Pachena) are blocked from due-west swells by headlands. These get an extra penalty factor.</li>
-</ul>
-<p>The formula: <code>surf_ft = swell_m × multiplier × (period/10 × period_influence) × direction_penalty × 3.28</code></p>
-<h4>Stage 3: Calibration</h4>
-<p>After the physics model runs, your personal calibration (scale, offset, period influence) and community peer corrections are applied. See chapters 5 and 6.</p>
-<div class="warn-box"><strong>These are estimates, not guarantees.</strong> Wave forecasting is inherently uncertain — models miss local bathymetry, fog, kelp, and countless other factors. Always assess conditions on arrival.</div>`
+<h3>Interface overview</h3>
+<p>Kookcast is a single-page app. All controls are accessible without scrolling past the header.</p>
+<h4>Break selector</h4>
+<p>The dropdown at top-left switches the active surf spot. The 7-day forecast list, map arrows, and charts all update to reflect the selected break.</p>
+<h4>Units toggle</h4>
+<p>Switch between metric (metres) and imperial (feet) at any time. Preference is saved in your browser.</p>
+<h4>Tide preference</h4>
+<p>Filters the daily forecast reading to a specific tide window. See Chapter 04 for full details.</p>
+<h4>Forecast rows</h4>
+<p>Each row represents one day. Tap or click any row to expand it — this reveals the three 24-hour charts, per-hour weather timeline, tide extrema, and field check tools. Tap again to collapse. Only one row is open at a time.</p>
+<h4>Reading window selector</h4>
+<p>Inside each expanded row, a secondary tide preference selector lets you override the global setting for that specific day without changing your saved preference.</p>
+<h4>Map</h4>
+<p>The Leaflet map shows all break locations. Click a pin to select that break. The purple arrow indicates the current swell direction (coming from); the blue arrow shows near-shore wind direction. Use the map controls to zoom.</p>
+<h4>Calibration panel</h4>
+<p>Tap the grid icon (⌗) in the top-right to open the calibration drawer. Settings are per-spot and stored in your browser only.</p>
+<h4>Charts</h4>
+<p>Click or tap any chart to expand it to full screen. Hover (desktop) or long-press to scrub exact values at any hour.</p>`
             },
             {
-                title: '📊 Chart School (No Kooks Allowed... jk)',
+                title: '02 · Forecast Model',
+                navLabel: '02 · Model',
                 content: `
-
-<h3>Three charts, three layers of information</h3>
-<p>Expand any forecast day to see the charts. Hover over any chart to see exact values at that time.</p>
-<h4>Waves · 24h (purple/blue bar chart)</h4>
+<h3>From ocean model to local surf height</h3>
+<p>The pipeline has three stages: global wave model → spot translation → local calibration.</p>
+<h4>Stage 1 — Global wave model</h4>
+<p>Wave data is sourced from the <strong>Open-Meteo Marine API</strong>, which aggregates ECMWF, GFS, and regional models. Kookcast pulls hourly values at each break's coordinates: significant wave height (Hs), swell partition height, dominant period (Tp), and mean swell direction.</p>
+<h4>Stage 2 — Spot translation</h4>
+<p>Raw swell height is not surf height. Each break has a tuned set of parameters:</p>
 <ul>
-<li><strong>Orange bars:</strong> Raw swell height from the model (metres or feet depending on your unit setting). This is what's happening in the open ocean nearby.</li>
-<li><strong>Blue bars:</strong> Predicted surf height at this specific break after applying the spot formula. This is what you'd ride.</li>
-<li>Bars only appear for hours where there's model data. Hover for hour-by-hour detail.</li>
+<li><strong>Swell window</strong> — the azimuth range that reaches this beach. Swell arriving outside this window is penalised by a cosine falloff.</li>
+<li><strong>Multiplier</strong> — how efficiently the bathymetry and beach geometry converts open-ocean energy to rideable height. Ranges from 0.52× (Pachena Park, bay-sheltered) to 1.05× (Keeha, fully exposed).</li>
+<li><strong>Period scaling</strong> — energy scales with period squared. A 16 s swell carries ~4× the energy of an 8 s swell at the same height. The period influence parameter controls how aggressively this is applied.</li>
+<li><strong>West dead zone</strong> — spots blocked from due-west swell by headlands receive an additional directional penalty.</li>
 </ul>
-<h4>La Perouse Buoy · 24h (teal bar chart)</h4>
-<p>Real observations from the <strong>La Perouse Bank discus buoy</strong> (NDBC 46206), ~150km offshore west of Bamfield. This is your advance warning system — swell takes several hours to travel from La Perouse to shore.</p>
-<ul>
-<li>Teal bars = observed significant wave height at the buoy.</li>
-<li>If the buoy is reading 3m+ with 14s+ period, expect solid surf in ~3-6 hours depending on the break.</li>
-<li>Buoy data may be missing for current/future hours — this is live observed data, not a model.</li>
-</ul>
-<h4>Tide · 24h (blue curve)</h4>
-<ul>
-<li>Smooth curve = predicted water level (CHS Bamfield #08545).</li>
-<li><strong>H markers (teal):</strong> High tide times and heights.</li>
-<li><strong>L markers (orange):</strong> Low tide times and heights.</li>
-<li><strong>Blue dashed line:</strong> Current time (on today's chart).</li>
-<li>The pills below show all HI/LO extrema with exact times.</li>
-</ul>
-<div class="tip-box"><strong>Pro tip:</strong> Use the tide preference dropdown (top of page) to filter the daily forecast reading to your preferred tide window. Most west coast beach breaks work best on the low-tide push.</div>`
+<p>Core formula: <code>surf_ft = Hs_m × multiplier × (Tp/10 × period_influence) × dir_factor × 3.28</code></p>
+<h4>Stage 3 — Calibration</h4>
+<p>User calibration (scale, offset, period influence, height source) and community peer correction are applied as a final pass. See Chapters 05 and the peer review section of each expanded day row.</p>
+<div class="warn-box">Wave forecasting carries inherent uncertainty. Bathymetry, sandbars, kelp, and local refraction effects are not fully captured by any model. Always assess conditions on arrival.</div>`
             },
             {
-                title: '🌊 Tide School',
+                title: '03 · Charts & Data',
+                navLabel: '03 · Charts',
                 content: `
-<h3>Customising your forecast window</h3>
-<p>The tide preference dropdown in the top controls changes which part of the day the forecast is optimised for. Different breaks work best at different tide stages.</p>
-<h4>Options explained:</h4>
-<ul>
-<li><strong>Highest surf (default):</strong> Scans all 24 hours and returns the peak estimated surf for the day, regardless of tide.</li>
-<li><strong>Day average:</strong> Averages all hourly surf values for a conservative daily reading.</li>
-<li><strong>Any tide (peak scan):</strong> Same as highest — unrestricted peak scan.</li>
-<li><strong>Low on the push ↓:</strong> Finds the 2-4 hours before each low tide. On most beach breaks, this is the magic window — the falling tide exposes the sandbar and the surf gets organised and powerful. Great for Keeha, Tapaltos.</li>
-<li><strong>At low tide:</strong> Only considers the ±1.5hr window around each low tide.</li>
-<li><strong>High on the push ↑:</strong> 2-4 hours before high tide. Some spots with kelp/reef prefer a bit of water on them.</li>
-<li><strong>At high tide:</strong> ±1.5hr around high tide.</li>
-<li><strong>Incoming (flood):</strong> All hours between low and the next high. Water filling up, typically good for shorey waves.</li>
-<li><strong>Outgoing (ebb):</strong> All hours between high and the next low. Water draining, can create powerful rip currents and standing walls at some spots.</li>
-</ul>
-<div class="tip-box"><strong>Bamfield recommendation:</strong> Most exposed beaches (Keeha, Tapaltos) are best on the <strong>low-tide push</strong> — surf a couple hours before low for the most defined peaks. Pachena Park can handle more tide due to its sheltered bay position.</div>
-<p>Your tide preference is saved in your browser — it persists between visits and applies to all breaks until you change it.</p>`
+<h3>Three data layers per day</h3>
+<p>Expand any forecast row to access the charts. Click a chart to open it full-screen. Hover to scrub exact hourly values.</p>
+<h4>Waves · 24h</h4>
+<p>A dual-bar chart spanning midnight to midnight (Pacific). Orange bars show raw swell height from the model; blue bars show predicted surf height at the selected break after spot translation. The x-axis is labelled every 3 hours.</p>
+<h4>La Perouse Buoy · 24h</h4>
+<p>Observed significant wave height from <strong>NDBC buoy 46206</strong> (La Perouse Bank), located ~150 km offshore west-southwest of Bamfield. This is live measured data — not a model output. Swell travel time from the buoy to shore is approximately 3–6 hours depending on speed and direction. Future hours will have no bars; this is expected.</p>
+<h4>Tide · 24h</h4>
+<p>Predicted water level from <strong>CHS Bamfield station 08545</strong> rendered as a smooth curve. Teal markers indicate high tide extrema; orange markers indicate low tide. A vertical dashed line marks the current time on today's chart. Exact extrema times and heights are listed as pills below the chart.</p>
+<h4>Weather timeline</h4>
+<p>Hourly weather icon strip showing conditions across the day — wind speed/direction, precipitation, and temperature. Scroll horizontally if needed.</p>`
             },
             {
-                title: '⚙️ Dial It In',
+                title: '04 · Tide Preference',
+                navLabel: '04 · Tide',
                 content: `
-
-<h3>Tuning the model to what you see</h3>
-<p>Click the <strong>⌗ button</strong> (top right) to open the Calibration panel. These settings are stored in <em>your browser only</em> and only affect what you see.</p>
+<h3>Reading window control</h3>
+<p>The tide preference selector filters which hours of the day contribute to the headline surf reading shown in each forecast row. It does not change the underlying model — only the window used to summarise the day.</p>
+<h4>Options</h4>
+<ul>
+<li><strong>Highest surf</strong> — scans all 24 hours and returns the peak hourly prediction. Default.</li>
+<li><strong>Day average</strong> — arithmetic mean of all hourly values. Conservative estimate for a full-day session.</li>
+<li><strong>Any tide (peak scan)</strong> — identical to Highest surf; unrestricted peak.</li>
+<li><strong>Low on the push</strong> — the 2–4 hours of falling tide immediately before each low. The dropping water level concentrates wave energy over exposed sandbars, typically producing the most organised and powerful surf at Bamfield beach breaks.</li>
+<li><strong>At low tide</strong> — ±1.5 hr window centred on each tidal low.</li>
+<li><strong>High on the push</strong> — 2–4 hours of rising tide before each high. Useful for reef or mixed-bottom spots that need water cover.</li>
+<li><strong>At high tide</strong> — ±1.5 hr window centred on each tidal high.</li>
+</ul>
+<p>The setting is saved in your browser and persists across sessions. You can also override it per-day using the selector inside each expanded forecast row.</p>
+<div class="tip-box">For Keeha and Tapaltos, <strong>Low on the push</strong> is generally the most productive window. Pachena Park tolerates more tide range due to its sheltered position in the bay.</div>`
+            },
+            {
+                title: '05 · Calibration',
+                navLabel: '05 · Calibration',
+                content: `
+<h3>Personal model tuning</h3>
+<p>Open the calibration panel via the ⌗ icon. All settings are stored locally in your browser and only affect your view. Each break has independent calibration.</p>
 <h4>Size scale (0.5× – 1.5×)</h4>
-<p>A global multiplier on the predicted height. If the model consistently calls 4ft but you're seeing 2ft walls, slide this to ~0.75×. Set it and forget it for several sessions before tweaking again.</p>
-<h4>Height offset (–4 to +4 ft)</h4>
-<p>Adds or subtracts a fixed amount from all predictions. Useful if the model is systematically off by a specific amount across all conditions.</p>
+<p>A global multiplier applied to predicted height after the spot formula runs. If the model consistently over-predicts, reduce this value. Allow several sessions before adjusting — single-session variance is high.</p>
+<h4>Height offset (–4 ft to +4 ft)</h4>
+<p>Adds a fixed correction to all predictions. Use this when the model error is consistent across different swell sizes and directions — a systematic bias rather than a scaling issue.</p>
 <h4>Period influence (0.5× – 1.5×)</h4>
-<p>How much the swell period amplifies the prediction. Long-period swells create more powerful waves than the model often accounts for. If you notice 16s groundswell consistently under-predicted, nudge this above 1×.</p>
+<p>Adjusts how aggressively long-period swell is amplified in the formula. Increase if long-period groundswell (14 s+) is consistently under-predicted. Decrease if the model over-reacts to long-period events.</p>
 <h4>Height source</h4>
 <ul>
-<li><strong>Swell partition (default):</strong> Uses only the swell component (organised groundswell), ignoring wind chop.</li>
-<li><strong>Significant wave height:</strong> Total sea state including wind waves. More conservative in mixed seas.</li>
+<li><strong>Swell partition</strong> — uses only the swell component (groundswell), ignoring wind waves. More representative of rideable surf at exposed breaks.</li>
+<li><strong>Significant wave height (Hs)</strong> — total sea state including wind chop. Produces higher values in mixed conditions.</li>
 </ul>
 <h4>Peer correction</h4>
-<p>When enabled, blends community field reports into your prediction. See the next chapter for how this works.</p>
-<div class="warn-box"><strong>Important:</strong> After a major storm or significant sandbar shift, reset your calibration (use "Reset this spot") and start fresh. Old calibrations can become misleading after the beach changes.</div>`
+<p>When enabled, condition-matched field reports from the community are blended into the prediction. The blending weight increases as more matching reports accumulate. See the field check section of each expanded day row to submit readings.</p>
+<p>Peer correction formula: <code>final = model + (blend_weight × shrink_factor × matched_residual)</code></p>
+<div class="warn-box">After a significant sandbar shift or major storm event, reset spot calibration and start fresh. Stale calibrations can introduce systematic error after the beach geometry changes.</div>`
             },
             {
-                title: '👥 The Kook Collective',
+                title: '06 · Surf Terminology',
+                navLabel: '06 · Terminology',
                 content: `
-
-<p>Every local who logs a surf check makes the model smarter for everyone. It's crowd-sourced calibration — and it's how Kookcast gets better over winter.</p>
-<h4>How to log a field check</h4>
-<p>Expand any forecast row for today or yesterday. At the bottom of the details panel, you'll see the <strong>"Field check"</strong> section. You can:</p>
-<ul>
-<li>Click <strong>"Spot on"</strong> if the model was accurate</li>
-<li>Click a delta button (+0.5ft, +1ft, -1ft, etc.) to indicate how far off the model was</li>
-<li>Enter the actual surf height you observed and click <strong>"Log size"</strong></li>
-</ul>
-<h4>How votes are stored</h4>
-<p>Every vote is saved with a rich context tag: model height, period, energy, swell direction, and wind angle. This means the algorithm knows not just "the model was off by 1ft" but "the model was off by 1ft when there was a 240° SW swell at 14s with offshore NE wind."</p>
-<h4>Condition-matched prediction</h4>
-<p>When peer correction is enabled (in Calibration), the system finds historical votes with <em>similar conditions</em> to today, weighted by recency and similarity. The formula:</p>
-<p><code>final = model + (blend% × shrink × matched_residual)</code></p>
-<p>Where <strong>shrink</strong> increases as more matching votes accumulate (new data = more confidence). This means early on, corrections are conservative; with 20+ votes, the algorithm gains confidence.</p>
-<h4>Shared pool</h4>
-<p>Votes from all users are pooled in a shared Cloudflare database. Your anonymous vote helps calibrate the model for everyone. No identifying information is stored — just your vote and its conditions.</p>
-<div class="tip-box"><strong>Best practice:</strong> Log a check every time you surf here. Even "spot on" votes are valuable — they confirm the model is working. Over a winter season, you'll build a calibration dataset that rivals paid forecast services for this specific area.</div>`
+<h3>Technical reference</h3>
+<dl class="surf-glossary">
+<dt>Significant wave height (Hs)</dt>
+<dd>The mean height of the highest one-third of waves in a given sea state. Standard scientific measure of wave height. Roughly corresponds to what an experienced observer would estimate by eye.</dd>
+<dt>Swell partition</dt>
+<dd>The component of the wave spectrum attributed to remotely generated swell (groundswell), separated from locally generated wind waves. Kookcast uses this by default as it better represents organised rideable surf.</dd>
+<dt>Dominant period (Tp)</dt>
+<dd>The wave period at the peak of the energy spectrum, in seconds. Longer period (12–20 s) indicates deep-water groundswell with high energy and fast travel speed. Short period (4–8 s) indicates local wind chop.</dd>
+<dt>Wave energy</dt>
+<dd>Proportional to Hs² × Tp. A 2 m / 16 s swell carries roughly 4× the energy of a 2 m / 8 s swell. Energy, not height alone, determines wave power.</dd>
+<dt>Swell direction</dt>
+<dd>The compass bearing the swell is travelling toward (i.e. a 270° swell comes from due west and moves east). Displayed on the map as the purple arrow pointing in the direction of travel.</dd>
+<dt>Wind direction</dt>
+<dd>The direction the wind is coming from. An easterly (90°) wind blows from east to west. Displayed on the map as the blue arrow.</dd>
+<dt>Offshore wind</dt>
+<dd>Wind blowing from land toward the ocean — from behind the breaking waves. Offshore conditions groom wave faces and hold up steep sections, generally producing better surfing conditions.</dd>
+<dt>Onshore wind</dt>
+<dd>Wind blowing from ocean toward land — into the face of the waves. Creates choppy, disorganised surf. The most common condition at Bamfield beach breaks.</dd>
+<dt>Cross-shore wind</dt>
+<dd>Wind blowing parallel to the coastline. Effect depends on exact beach orientation — can be slightly grooming or slightly textured depending on angle.</dd>
+<dt>Swell window</dt>
+<dd>The range of swell directions that can reach a specific break without significant refraction or blocking. Swells arriving outside this window lose energy or miss the break entirely.</dd>
+<dt>Groundswell</dt>
+<dd>Swell generated by a distant storm. Characterised by long period (10 s+), organised lines, and smooth faces. Travels thousands of kilometres and arrives sorted by period. Most surfable swell at Bamfield.</dd>
+<dt>Windswell</dt>
+<dd>Swell generated by local or regional wind events. Short period (under 10 s), lumpy, disorganised. Less desirable for surfing but can add to surf height in count.</dd>
+<dt>Shorebreak</dt>
+<dd>Waves breaking directly on the beach slope with minimal face. Common at steep-sand beaches like Keeha. Can be powerful but offers short, punchy rides.</dd>
+<dt>Set</dt>
+<dd>A group of larger waves arriving together, separated from the background swell by lulls. Sets typically arrive in groups of 3–7 waves every few minutes on longer-period groundswell.</dd>
+<dt>Lull</dt>
+<dd>The interval between wave sets when the ocean appears relatively calm. Can last 5–30+ minutes on long-period groundswell.</dd>
+<dt>Low-tide push</dt>
+<dd>The 2–4 hours of falling tide immediately before low water. As water drops, sandbars become shallower and wave energy concentrates. Generally the highest-quality window at Bamfield beach breaks.</dd>
+<dt>Rip current</dt>
+<dd>A strong, narrow channel of water flowing seaward through the surf zone. Forms where wave setup creates differential pressure gradients — typically near headlands, channels, or breaks in sandbars. Swim parallel to shore to escape.</dd>
+<dt>Bathymetry</dt>
+<dd>The underwater topography of the ocean floor. Sandbars, reefs, and depth contours dramatically affect how swell refracts, focuses, and breaks at each spot.</dd>
+</dl>`
             },
             {
-                title: '📍 Know Your Breaks',
+                title: '07 · The Breaks',
+                navLabel: '07 · Breaks',
                 content: `
-
-<h3>Know your spots</h3>
-<p>Use the <strong>break selector</strong> in the top controls to switch between spots. The map updates to show swell and wind direction arrows for the selected break.</p>
+<h3>Spot reference</h3>
+<p>Use the break selector to switch spots. Each break has independently tuned model parameters.</p>
 <h4>Pachena — Park side</h4>
-<p>Sand beach inside Pachena Bay on the south/east side. The large bay kills a lot of swell size (0.52× multiplier) — this spot needs solid, well-directed SW swell to come alive. Best on summer SW groundswell. Protected from NW wind.</p>
-<h4>Pachena — Riverside (rivermouth)</h4>
-<p>Where the Pachena River meets the ocean, forming a sandbar that creates more consistent wave shapes than the open beach. Slightly more consistent on smaller days due to the bar but also needs the right swell direction (188°–232°).</p>
+<p>Sand beach on the south/east shore of Pachena Bay. The bay geometry attenuates significant swell energy — <strong>multiplier 0.52×</strong>, swell window 188°–232°. Needs solid, well-directed SW groundswell to produce surfable waves. Sheltered from NW winds. Most consistent in summer SW swell season.</p>
+<h4>Pachena — Riverside</h4>
+<p>River mouth break where the Pachena River meets the bay. The sandbars at the river mouth create more defined peaks than the open beach on smaller days. Swell window 188°–232°, slightly higher tolerance for tide range than the open beach side.</p>
 <h4>Breakers</h4>
-<p>Very protected cove — needs solid south energy to break. Rarely surfed but when the swell is right (160°–215°), it offers a more sheltered option.</p>
+<p>Protected cove requiring strong south-to-SW energy to break. Swell window 160°–215°. Rarely surfed — conditions need to be substantial for the cove geometry to funnel enough energy. Offers a more sheltered alternative when exposed beaches are maxed out.</p>
 <h4>Keeha Beach</h4>
-<p>The most exposed beach in the Bamfield area. Wide open to W-SW swell (215°–295°), 1.05× multiplier — what you see at the buoy is roughly what you get here. Steep sand creates powerful, often hollow shorebreak. Handle with caution on bigger days. Best on the low-tide push.</p>
+<p>The most exposed break in the Bamfield area. Directly faces the open Pacific. Swell window 215°–295°, <strong>multiplier 1.05×</strong>. What the La Perouse buoy reads is close to what arrives here. Steep sand beach produces powerful, often hollow shorebreak. Best on the low-tide push. Exercise caution on larger days — currents can be strong and the beach is remote.</p>
 <h4>Tapaltos Bay</h4>
-<p>Open bay facing west (235°–285°). More predictable than pocket beaches, 0.88× multiplier. Less dramatic shorebreak than Keeha. Good intermediate option when Keeha is too much.</p>
+<p>West-facing open bay. Swell window 235°–285°, <strong>multiplier 0.88×</strong>. More forgiving than Keeha — lower shorebreak angle produces longer walls on the right swell. A good step between the sheltered Pachena spots and the exposed Keeha environment.</p>
 <h4>Maben's Beach</h4>
-<p>Slightly reef-influenced, south-facing (175°–225°). Needs south-to-SW swell. The reef adds a bit of consistency compared to pure sand neighbours but still needs the right conditions.</p>
-<div class="tip-box"><strong>Map tip:</strong> Click any beach pin on the map to jump to that break's forecast. The purple arrow shows swell direction (coming from), the blue arrow shows wind direction (coming from) near shore.</div>`
+<p>South-facing, partially reef-influenced. Swell window 175°–225°. Reef provides some consistency in wave shape compared to pure sand neighbours. Needs south-to-SW swell direction to activate. Typically smaller than fully exposed spots on the same day.</p>
+<div class="tip-box">Click any pin on the map to jump to that break's forecast. The purple arrow shows where the swell is coming from; blue shows near-shore wind direction.</div>`
             },
         ];
 
@@ -3419,6 +3477,10 @@
             document.querySelectorAll('.guide-nav-btn').forEach((btn, i) => {
                 btn.classList.toggle('active', i === currentChapter);
             });
+            // Wire chapter-grid tile clicks on overview page
+            $('guide-body').querySelectorAll('.guide-chapter-tile').forEach(tile => {
+                tile.onclick = () => showChapter(parseInt(tile.dataset.chapter, 10));
+            });
         }
 
         const nav = $('guide-nav');
@@ -3426,7 +3488,7 @@
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = 'guide-nav-btn' + (i === 0 ? ' active' : '');
-            btn.textContent = ch.title.split(' ').slice(0, 3).join(' ');
+            btn.textContent = ch.navLabel || ch.title;
             btn.onclick = () => showChapter(i);
             nav.appendChild(btn);
         });
@@ -3457,6 +3519,14 @@
         };
 
         showChapter(0);
+
+        // Randomise rainbow gradient stop position each page load
+        try {
+            const titleEl = document.querySelector('.kookcast-title');
+            if (titleEl) {
+                titleEl.style.animationDelay = -(Math.random() * 9).toFixed(2) + 's';
+            }
+        } catch(_) {}
 
         // Show guide on first visit
         try {
