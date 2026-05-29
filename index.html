@@ -10,16 +10,16 @@
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;0,9..40,800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0e0f12;
-            --surface: #16181e;
-            --surface2: #1c1f28;
-            --text: #f2f3f5;
-            --muted: #8b93a5;
-            --border: #2a2f3a;
-            --accent: #3d9dff;
-            --swell: #7c5cff;
-            --tide: #2ee6d6;
-            --warn: #ffb020;
+            --bg: #f5f7fc;
+            --surface: #ffffff;
+            --surface2: #eef1f8;
+            --text: #1a1d26;
+            --muted: #6b7280;
+            --border: #dde2ec;
+            --accent: #2563eb;
+            --swell: #f97316;
+            --tide: #0891b2;
+            --warn: #f59e0b;
             --radius: 12px;
         }
         *, *::before, *::after { box-sizing: border-box; }
@@ -118,10 +118,10 @@
             padding: 0.55rem 0.65rem;
             border-radius: 8px;
             border: 1px solid var(--border);
-            background: rgba(10, 11, 16, 0.62);
+            background: rgba(255, 255, 255, 0.93);
             backdrop-filter: blur(6px);
             font-size: 0.68rem;
-            color: var(--muted);
+            color: var(--text);
             line-height: 1.45;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
         }
@@ -144,7 +144,7 @@
             width: 22px;
             height: 22px;
             border-radius: 4px;
-            background: rgba(18, 21, 28, 0.9);
+            background: rgba(238, 241, 248, 0.98);
             border: 1px solid var(--border);
             display: grid;
             place-items: center;
@@ -208,12 +208,12 @@
             position: relative;
             height: 140px;
             width: 100%;
-            background: linear-gradient(180deg, #12151c 0%, #0a0b10 100%);
+            background: linear-gradient(180deg, #f8f9fc 0%, #eef1f8 100%);
             border-radius: 8px;
             border: 1px solid var(--border);
             overflow: hidden;
         }
-        .chart-block .chart-legend .lg-buoy-lp { background: #2ee6d6; }
+        .chart-block .chart-legend .lg-buoy-lp { background: #0891b2; }
         .chart-block .chart-legend .lg-buoy-hb { background: var(--warn); }
         .chart-block {
             margin-bottom: 0.85rem;
@@ -235,7 +235,7 @@
             position: relative;
             height: 192px;
             width: 100%;
-            background: linear-gradient(180deg, #12151c 0%, #0a0b10 100%);
+            background: linear-gradient(180deg, #f8f9fc 0%, #eef1f8 100%);
             border-radius: 8px;
             border: 1px solid var(--border);
             overflow: hidden;
@@ -244,7 +244,7 @@
             position: relative;
             height: 148px;
             width: 100%;
-            background: linear-gradient(180deg, #12151c 0%, #0a0b10 100%);
+            background: linear-gradient(180deg, #f8f9fc 0%, #eef1f8 100%);
             border-radius: 8px;
             border: 1px solid var(--border);
             overflow: hidden;
@@ -358,7 +358,7 @@
             padding: 0 1rem;
             border: 1px solid var(--border);
             border-top: none;
-            background: #111318;
+            background: #f8faff;
             transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, padding 0.35s ease;
         }
         .details.visible {
@@ -390,7 +390,7 @@
             color: var(--muted);
             margin: 0.75rem 0 0;
             padding: 0.65rem;
-            background: rgba(124, 92, 255, 0.06);
+            background: rgba(249, 115, 22, 0.06);
             border-radius: 8px;
             border-left: 3px solid var(--swell);
         }
@@ -438,8 +438,8 @@
             margin-top: 0.65rem;
             padding: 0.65rem 0.7rem;
             border-radius: 8px;
-            border: 1px solid rgba(124, 92, 255, 0.28);
-            background: rgba(124, 92, 255, 0.06);
+            border: 1px solid rgba(249, 115, 22, 0.35);
+            background: rgba(249, 115, 22, 0.05);
         }
         .peer-strip .peer-title { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--swell); margin-bottom: 0.35rem; }
         .peer-strip .peer-sub { font-size: 0.74rem; color: var(--muted); margin-bottom: 0.5rem; line-height: 1.35; }
@@ -459,12 +459,12 @@
         .peer-custom label { font-size: 0.72rem; color: var(--muted); }
         .peer-custom input.peer-observed-input {
             width: 4.2rem; padding: 0.28rem 0.4rem; border-radius: 6px;
-            border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border); background: var(--surface2);
             color: var(--text); font-size: 0.78rem;
         }
         .peer-custom input.peer-observed-input:focus { outline: none; border-color: var(--accent); }
         .peer-log { margin-top: 0.55rem; font-size: 0.72rem; color: var(--muted); border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.45rem; }
-        .peer-algo-note { margin-top: 0.35rem; font-size: 0.68rem; color: #6c7384; line-height: 1.35; }
+        .peer-algo-note { margin-top: 0.35rem; font-size: 0.68rem; color: #9ca3af; line-height: 1.35; }
 
         .error-banner {
             background: rgba(255, 176, 32, 0.1);
@@ -482,7 +482,7 @@
             z-index: 9999;
             display: grid;
             place-items: center;
-            background: rgba(5, 6, 8, 0.92);
+            background: rgba(230, 235, 248, 0.96);
             backdrop-filter: blur(12px);
             padding: 1.5rem;
         }
@@ -514,7 +514,7 @@
             border: none;
             border-radius: 8px;
             background: var(--accent);
-            color: #051018;
+            color: #ffffff;
             font-family: inherit;
             font-weight: 700;
             cursor: pointer;
@@ -589,7 +589,7 @@
             font-weight: 600;
             cursor: pointer;
         }
-        .cal-actions button.primary { background: rgba(61, 157, 255, 0.18); border-color: rgba(61, 157, 255, 0.45); color: var(--accent); }
+        .cal-actions button.primary { background: rgba(37, 99, 235, 0.1); border-color: rgba(37, 99, 235, 0.4); color: var(--accent); }
 
         .skeleton {
             height: 56px;
@@ -844,13 +844,13 @@
         pacificDayHourLabels().forEach((h) => {
             const ts = h >= 24 ? t1 : t0 + h * 3600000;
             const x = scaleX(ts);
-            out += '<line x1="' + x.toFixed(1) + '" y1="' + chartBottom + '" x2="' + x.toFixed(1) + '" y2="' + (chartBottom + 4) + '" stroke="#4a5160" stroke-width="1"/>';
+            out += '<line x1="' + x.toFixed(1) + '" y1="' + chartBottom + '" x2="' + x.toFixed(1) + '" y2="' + (chartBottom + 4) + '" stroke="#9ca3af" stroke-width="1"/>';
             const lab = h >= 24 ? '12 AM' : formatHourAmPm(h);
-            out += '<text x="' + x.toFixed(1) + '" y="' + axisY + '" fill="#8b93a5" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">' + lab + '</text>';
+            out += '<text x="' + x.toFixed(1) + '" y="' + axisY + '" fill="#6b7280" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">' + lab + '</text>';
         });
         [6, 12, 18].forEach((h) => {
             const x = scaleX(t0 + h * 3600000);
-            out += '<line x1="' + x.toFixed(1) + '" y1="' + chartTop + '" x2="' + x.toFixed(1) + '" y2="' + chartBottom + '" stroke="#252a35" stroke-width="1" opacity="0.65"/>';
+            out += '<line x1="' + x.toFixed(1) + '" y1="' + chartTop + '" x2="' + x.toFixed(1) + '" y2="' + chartBottom + '" stroke="#e2e6ed" stroke-width="1" opacity="0.65"/>';
         });
         return out;
     }
@@ -1746,10 +1746,10 @@
         [0, 0.5, 1].forEach((frac) => {
             const val = maxDisp * frac;
             const y = bottom - (val / maxDisp) * chartH;
-            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#2a2f3a" stroke-width="1"/>';
-            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#6c7384" font-size="7" text-anchor="end">' + val.toFixed(1) + '</text>';
+            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#dde2ec" stroke-width="1"/>';
+            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#9ca3af" font-size="7" text-anchor="end">' + val.toFixed(1) + '</text>';
         });
-        grid += '<text x="' + (padL - 4) + '" y="14" fill="#8b93a5" font-size="7" text-anchor="end">' + lenU + '</text>';
+        grid += '<text x="' + (padL - 4) + '" y="14" fill="#6b7280" font-size="7" text-anchor="end">' + lenU + '</text>';
         let bars = '';
         const tickHours = [0, 6, 12, 18];
         hours.forEach((hr, hi) => {
@@ -1759,11 +1759,11 @@
             const bh = (v / maxDisp) * chartH;
             bars += '<rect x="' + x0.toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#2ee6d6" rx="1" opacity="0.9"/>';
             if (tickHours.indexOf(hr.h) >= 0) {
-                bars += '<text x="' + (x0 + barW / 2).toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle">' + formatHourAmPm(hr.h) + '</text>';
+                bars += '<text x="' + (x0 + barW / 2).toFixed(1) + '" y="' + (h - 6) + '" fill="#6b7280" font-size="7" text-anchor="middle">' + formatHourAmPm(hr.h) + '</text>';
             }
         });
         const xEnd = padL + 24 * groupW - groupW * 0.2;
-        bars += '<text x="' + xEnd.toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle">12 AM</text>';
+        bars += '<text x="' + xEnd.toFixed(1) + '" y="' + (h - 6) + '" fill="#6b7280" font-size="7" text-anchor="middle">12 AM</text>';
         return '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">' + grid + bars + '</svg>';
     }
 
@@ -1833,8 +1833,8 @@
         [0, 0.5, 1].forEach((frac) => {
             const val = maxDisp * frac;
             const y = bottom - frac * chartH;
-            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#2a2f3a" stroke-width="1"/>';
-            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#6c7384" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + val.toFixed(1) + '</text>';
+            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#dde2ec" stroke-width="1"/>';
+            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#9ca3af" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + val.toFixed(1) + '</text>';
         });
         let rects = '';
         const tickHours = [0, 6, 12, 18];
@@ -1845,23 +1845,23 @@
             const predD = ftToDisplay(b.predictedFt, u);
             if (swellD != null) {
                 const bh = (swellD / maxDisp) * chartH;
-                rects += '<rect x="' + x0.toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#7c5cff" rx="1"/>';
+                rects += '<rect x="' + x0.toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#f97316" rx="1"/>';
             }
             if (predD != null && predD > 0) {
                 const bh = (predD / maxDisp) * chartH;
-                rects += '<rect x="' + (x0 + barW + 1).toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#3d9dff" rx="1" opacity="0.9"/>';
+                rects += '<rect x="' + (x0 + barW + 1).toFixed(1) + '" y="' + (bottom - bh).toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="#2563eb" rx="1" opacity="0.9"/>';
             }
             if (tickHours.indexOf(b.h) >= 0) {
                 const lx = x0 + barW;
-                hourAxis += '<text x="' + lx.toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">' + formatHourAmPm(b.h) + '</text>';
+                hourAxis += '<text x="' + lx.toFixed(1) + '" y="' + (h - 6) + '" fill="#6b7280" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">' + formatHourAmPm(b.h) + '</text>';
             }
         });
         const xEnd = padL + 24 * groupW - groupW * 0.1;
-        hourAxis += '<text x="' + xEnd.toFixed(1) + '" y="' + (h - 6) + '" fill="#8b93a5" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">12 AM</text>';
+        hourAxis += '<text x="' + xEnd.toFixed(1) + '" y="' + (h - 6) + '" fill="#6b7280" font-size="7" text-anchor="middle" font-family="system-ui,sans-serif">12 AM</text>';
         return (
             '<svg viewBox="0 0 ' + w + ' ' + h + '" class="wave-bar-svg" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">'
             + grid
-            + '<text x="' + (padL - 4) + '" y="14" fill="#8b93a5" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + lenU + '</text>'
+            + '<text x="' + (padL - 4) + '" y="14" fill="#6b7280" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + lenU + '</text>'
             + rects
             + hourAxis
             + '</svg>'
@@ -2029,10 +2029,10 @@
         [0, 0.5, 1].forEach((frac) => {
             const val = vmin + vr * frac;
             const y = chartBottom - frac * chartH;
-            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#2a2f3a" stroke-width="1"/>';
-            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#6c7384" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + val.toFixed(1) + '</text>';
+            grid += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w - padR) + '" y2="' + y.toFixed(1) + '" stroke="#dde2ec" stroke-width="1"/>';
+            grid += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" fill="#9ca3af" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + val.toFixed(1) + '</text>';
         });
-        grid += '<text x="' + (padL - 4) + '" y="14" fill="#8b93a5" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + lenU + '</text>';
+        grid += '<text x="' + (padL - 4) + '" y="14" fill="#6b7280" font-size="7" text-anchor="end" font-family="system-ui,sans-serif">' + lenU + '</text>';
 
         const tickEls = svgPacificHourTicks(t0, t1, scaleX, chartTop, chartBottom, axisY);
 
@@ -2044,28 +2044,28 @@
             const x = scaleX(tm);
             const isH = e.type === 'high';
             const isL = e.type === 'low';
-            const stroke = isH ? '#2ee6d6' : isL ? '#a78bfa' : '#7a8499';
+            const stroke = isH ? '#0891b2' : isL ? '#f97316' : '#9ca3af';
             const vDisp = mToDisplay(e.value, u);
             markEls += '<line x1="' + x.toFixed(1) + '" y1="' + chartTop + '" x2="' + x.toFixed(1) + '" y2="' + chartBottom + '" stroke="' + stroke + '" stroke-width="1" stroke-dasharray="3 3" opacity="0.55"/>';
             const tag = isH ? 'H' : isL ? 'L' : '\u00b7';
             markEls += '<text x="' + x.toFixed(1) + '" y="' + (chartTop - 2) + '" fill="' + stroke + '" font-size="8" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="700">' + tag + ' ' + vDisp.toFixed(1) + lenU + '</text>';
-            markEls += '<text x="' + x.toFixed(1) + '" y="' + (chartTop + 9) + '" fill="#6c7384" font-size="6" text-anchor="middle" font-family="system-ui,sans-serif">' + timeFmt.format(e.t) + '</text>';
+            markEls += '<text x="' + x.toFixed(1) + '" y="' + (chartTop + 9) + '" fill="#9ca3af" font-size="6" text-anchor="middle" font-family="system-ui,sans-serif">' + timeFmt.format(e.t) + '</text>';
         });
 
         let nowLine = '';
         if (now >= t0 && now < t1) {
             const nx = scaleX(now);
-            nowLine = '<line x1="' + nx.toFixed(1) + '" y1="' + chartTop + '" x2="' + nx.toFixed(1) + '" y2="' + chartBottom + '" stroke="#3d9dff" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.85"/>';
+            nowLine = '<line x1="' + nx.toFixed(1) + '" y1="' + chartTop + '" x2="' + nx.toFixed(1) + '" y2="' + chartBottom + '" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.85"/>';
         }
 
         return (
             '<svg viewBox="0 0 ' + w + ' ' + totalH + '" class="tide-svg" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">' +
                 '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1">' +
-                '<stop offset="0%" stop-color="#2ee6d6" stop-opacity="0.22"/>' +
-                '<stop offset="100%" stop-color="#2ee6d6" stop-opacity="0"/></linearGradient></defs>' +
+                '<stop offset="0%" stop-color="#0891b2" stop-opacity="0.22"/>' +
+                '<stop offset="100%" stop-color="#0891b2" stop-opacity="0"/></linearGradient></defs>' +
                 grid + tickEls +
                 '<path d="' + fillD + '" fill="url(#' + gid + ')"/>' +
-                '<polyline fill="none" stroke="#2ee6d6" stroke-width="2" stroke-linejoin="round" points="' + linePts + '"/>' +
+                '<polyline fill="none" stroke="#0891b2" stroke-width="2" stroke-linejoin="round" points="' + linePts + '"/>' +
                 markEls + nowLine +
             '</svg>'
         );
