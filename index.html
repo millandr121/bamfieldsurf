@@ -893,8 +893,6 @@
                 <option value="low">At low tide</option>
                 <option value="high_push">High on the push ↑</option>
                 <option value="high">At high tide</option>
-                <option value="incoming">Incoming (flood)</option>
-                <option value="outgoing">Outgoing (ebb)</option>
             </select>
         </div>
     </header>
@@ -1120,7 +1118,7 @@
         const opts = [
             ['highest','Highest surf'],['average','Day average'],['any','Any tide (peak)'],
             ['low_push','Low on push ↓'],['low','At low tide'],['high_push','High on push ↑'],
-            ['high','At high tide'],['incoming','Incoming (flood)'],['outgoing','Outgoing (ebb)']
+            ['high','At high tide']
         ];
         const options = opts.map(([v,l]) => '<option value="' + v + '"' + (v===currentPref?' selected':'') + '>' + l + '</option>').join('');
         return '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.65rem;padding-bottom:0.65rem;border-bottom:1px solid var(--border);">'
@@ -3140,11 +3138,10 @@
                 highest: 'peak of day', average: 'day avg', any: 'peak scan',
                 low_push: 'low on push', low: 'at low tide',
                 high_push: 'high on push', high: 'at high tide',
-                incoming: 'flood tide', outgoing: 'ebb tide'
             };
             const prefLabel = prefLabels[tidePref] || 'calibrated';
             const tidePrefLabel = tidePref !== 'highest' && tidePref !== 'any' && tidePref !== 'average' && tidePrefHours
-                ? '<div class="stat-line" style="opacity:0.8;"><span>Reading window</span><span style="color:var(--tide);">' + ({low_push:'Low on push',low:'At low',high_push:'High on push',high:'At high',incoming:'Incoming (flood)',outgoing:'Outgoing (ebb)'}[tidePref]) + '</span></div>'
+                ? '<div class="stat-line" style="opacity:0.8;"><span>Reading window</span><span style="color:var(--tide);">' + ({low_push:'Low on push',low:'At low',high_push:'High on push',high:'At high',}[tidePref]) + '</span></div>'
                 : '';
 
             const row = document.createElement('button');
