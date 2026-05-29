@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bamfield Surf Report</title>
+    <title>Kookcast — Bamfield Surf</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -362,7 +362,7 @@
             transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, padding 0.35s ease;
         }
         .details.visible {
-            max-height: 1600px;
+            max-height: 2200px;
             opacity: 1;
             padding: 1.25rem 1rem;
         }
@@ -612,6 +612,56 @@
             .mini-flow { animation: none !important; }
         }
 
+        .kookcast-title {
+            font-size: clamp(2rem, 6vw, 3.2rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin: 0;
+            line-height: 1.05;
+            background: linear-gradient(90deg, #f97316, #f59e0b, #22c55e, #0891b2, #2563eb, #a855f7, #f97316);
+            background-size: 300% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: kookRainbow 5s linear infinite;
+        }
+        @keyframes kookRainbow {
+            0% { background-position: 0% center; }
+            100% { background-position: 300% center; }
+        }
+
+        .guide-wave {
+            font-size: 1.8rem;
+            display: inline-block;
+            animation: waveHand 1.2s ease-in-out infinite;
+            transform-origin: bottom right;
+        }
+        @keyframes waveHand {
+            0%, 100% { transform: rotate(-10deg); }
+            50% { transform: rotate(20deg); }
+        }
+        .guide-kook-badge {
+            display: inline-block;
+            background: linear-gradient(90deg, #f97316, #f59e0b, #22c55e, #0891b2, #2563eb, #a855f7);
+            background-size: 200% auto;
+            animation: kookRainbow 3s linear infinite;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+        }
+        .guide-surf-icon {
+            font-size: 2.5rem;
+            display: block;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            animation: bobble 2s ease-in-out infinite;
+        }
+        @keyframes bobble {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
         /* Guide */
         .guide-overlay {
             position: fixed; inset: 0; z-index: 9998;
@@ -710,8 +760,8 @@
 <div id="main-app" class="app-wrap" style="display:none">
     <header>
         <div>
-            <h1>Bamfield Surf Report</h1>
-            <p class="tagline">Model swell + CHS tides (Bamfield #08545), tuned with local windows for west-coast Vancouver Island spots. Calibrate against what you see in the water.</p>
+            <h1 class="kookcast-title">KOOKCAST</h1>
+            <p class="tagline">Your hyper-local, possibly-accurate, definitely-kooky swell oracle for Bamfield's gnarliest west coast breaks. Powered by math, vibes, and locals who actually paddle out.</p>
         </div>
         <div class="controls">
             <label class="sr-only" for="break-selector">Surf break</label>
@@ -730,7 +780,9 @@
             </select>
             <label class="sr-only" for="tide-pref">Tide preference</label>
             <select id="tide-pref" title="Preferred tide window for daily forecast reading">
-                <option value="any">Best surf (any tide)</option>
+                <option value="highest">Highest surf (default)</option>
+                <option value="average">Day average</option>
+                <option value="any">Any tide (peak scan)</option>
                 <option value="low_push">Low on the push ↓</option>
                 <option value="low">At low tide</option>
                 <option value="high_push">High on the push ↑</option>
@@ -819,7 +871,7 @@
     <div id="guide-overlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
         <div class="guide-card">
             <div class="guide-header">
-                <h2 id="guide-title">📖 Bamfield Surf Guide</h2>
+                <h2 id="guide-title"><span class="guide-wave">🤙</span> <span class="guide-kook-badge">KOOKCAST</span> Guide</h2>
                 <button type="button" id="guide-close" class="guide-close" aria-label="Close guide">✕</button>
             </div>
             <div class="guide-nav" id="guide-nav"></div>
@@ -861,7 +913,7 @@
     const UNITS_KEY = 'bamfieldUnits_v1';
     const TIDE_PREF_STORAGE = 'bamfieldTidePref_v1';
     function getTidePref() {
-        try { return localStorage.getItem(TIDE_PREF_STORAGE) || 'any'; } catch(_) { return 'any'; }
+        try { return localStorage.getItem(TIDE_PREF_STORAGE) || 'highest'; } catch(_) { return 'highest'; }
     }
     function setTidePref(v) {
         try { localStorage.setItem(TIDE_PREF_STORAGE, v); } catch(_) {}
@@ -971,14 +1023,28 @@
     }
 
     function vancouverDayBoundsMs(dayStr) {
-        let t = Date.parse(dayStr + 'T12:00:00');
-        for (let n = 0; n < 72; n++) {
-            if (vancouverYMD(new Date(t)) === dayStr) break;
-            t -= 3600000;
+        // Find exact midnight America/Vancouver for dayStr by trying UTC offsets 7 and 8
+        const candidates = [
+            Date.parse(dayStr + 'T07:00:00Z'),
+            Date.parse(dayStr + 'T08:00:00Z'),
+            Date.parse(dayStr + 'T09:00:00Z'),
+        ];
+        let start = null;
+        for (const c of candidates) {
+            if (vancouverYMD(new Date(c)) === dayStr && vancouverYMD(new Date(c - 60000)) !== dayStr) {
+                start = c;
+                break;
+            }
         }
-        const start = t;
-        while (vancouverYMD(new Date(t)) === dayStr) t += 3600000;
-        return { start: start, end: t };
+        if (start == null) {
+            let t = Date.parse(dayStr + 'T20:00:00Z');
+            while (vancouverYMD(new Date(t)) === dayStr) t -= 3600000;
+            while (vancouverYMD(new Date(t)) !== dayStr) t += 60000;
+            start = t;
+        }
+        let end = start + 23 * 3600000;
+        while (vancouverYMD(new Date(end)) === dayStr) end += 3600000;
+        return { start, end };
     }
 
     function tideValAtTime(sortedPts, t) {
@@ -1626,7 +1692,7 @@
     }
 
     function getTidePrefHours(dayStr, hiloTagged, pref) {
-        if (!pref || pref === 'any') return null;
+        if (!pref || pref === 'highest' || pref === 'average' || pref === 'any') return null;
         const dayHilos = hiloTagged.filter(e => vancouverYMD(e.t) === dayStr);
         if (!dayHilos.length) return null;
         const bounds = vancouverDayBoundsMs(dayStr);
@@ -1779,6 +1845,39 @@
             }
         }
         return best;
+    }
+
+    function averageHourlyForDay(dayTimeISO, hourlyM, hourlyW, spot, cal) {
+        const day = dayTimeISO.slice(0, 10);
+        const times = hourlyM.time;
+        let sumFt = 0, sumSwell = 0, count = 0;
+        let windSum = 0, wdirSum = 0, windCount = 0;
+        let bestDir = null, bestP = null;
+        let bestFt = 0;
+        for (let i = 0; i < times.length; i++) {
+            if (!times[i].startsWith(day)) continue;
+            const sh = pickHourlyHeight(hourlyM, i, cal);
+            const sd = hourlyM.swell_wave_direction?.[i] ?? hourlyM.wave_direction?.[i];
+            const sp = hourlyM.swell_wave_period?.[i] ?? hourlyM.wave_period?.[i];
+            if (sh == null || sd == null) continue;
+            const ft = calculateSurf(sh, sd, sp, spot, cal);
+            sumFt += ft; sumSwell += sh; count++;
+            if (ft > bestFt) { bestFt = ft; bestDir = sd; bestP = sp; }
+            const w = hourlyW?.wind_speed_10m?.[i];
+            const wd = hourlyW?.wind_direction_10m?.[i];
+            if (w != null) { windSum += w; windCount++; }
+            if (wd != null) wdirSum += wd;
+        }
+        if (!count) return { ft: 0, swell: 0, dir: null, p: null, idx: 0, wind: null, wdir: null };
+        return {
+            ft: sumFt / count,
+            swell: sumSwell / count,
+            dir: bestDir,
+            p: bestP,
+            idx: 0,
+            wind: windCount ? windSum / windCount : null,
+            wdir: windCount ? wdirSum / windCount : null,
+        };
     }
 
     async function fetchJsonFlexible(url) {
@@ -2730,6 +2829,43 @@
         });
     }
 
+    function buildWeatherTimelineHtml(dayStr, hourlyW, units) {
+        if (!hourlyW || !hourlyW.time) return '';
+        const u = units || getUnits();
+        const tLab = tempUnitLabel(u);
+        const hours = [];
+        hourlyW.time.forEach((t, i) => {
+            if (!t.startsWith(dayStr)) return;
+            const h = parseInt(t.slice(11, 13), 10);
+            if (h % 3 !== 0) return; // every 3 hours
+            const code = hourlyW.weather_code?.[i];
+            const wx = weatherCodeInfo(code);
+            const temp = tempToDisplay(hourlyW.temperature_2m?.[i], u);
+            const wind = hourlyW.wind_speed_10m?.[i];
+            const wdir = hourlyW.wind_direction_10m?.[i];
+            const precip = hourlyW.precipitation?.[i];
+            hours.push({ h, wx, temp, wind, wdir, precip });
+        });
+        if (!hours.length) return '';
+        const cols = hours.map(hr => `
+            <div style="flex:1;min-width:3rem;text-align:center;padding:0.35rem 0.2rem;border-right:1px solid var(--border);">
+                <div style="font-size:0.62rem;color:var(--muted);margin-bottom:0.2rem;">${formatHourAmPm(hr.h)}</div>
+                <div style="font-size:1rem;line-height:1;">${hr.wx.icon}</div>
+                <div style="font-size:0.7rem;font-weight:700;margin-top:0.15rem;">${hr.temp != null ? Math.round(hr.temp) + tLab : '—'}</div>
+                <div style="font-size:0.62rem;color:var(--muted);">${hr.wind != null ? Math.round(hr.wind) + ' km/h' : ''}</div>
+                ${hr.precip != null && hr.precip > 0 ? `<div style="font-size:0.6rem;color:#0891b2;">${hr.precip.toFixed(1)}mm</div>` : ''}
+            </div>
+        `).join('');
+        return `
+            <div class="chart-block">
+                <div class="chart-head"><h3 style="margin:0;border:0;padding:0;">Weather · 3hr</h3></div>
+                <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface);overflow-x:auto;">
+                    ${cols}
+                </div>
+            </div>
+        `;
+    }
+
     function render(key, b) {
         const wrapper = $('forecast-wrapper');
         const errSlot = $('error-slot');
@@ -2768,7 +2904,14 @@
             const dayStr = rp.dayStr;
             const tidePref = getTidePref();
             const tidePrefHours = getTidePrefHours(dayStr, hiloTagged, tidePref);
-            const best = summarizeHourlyForDay(daily.time[i], hourlyM, hourlyW, b, cal, tidePrefHours);
+
+            let best;
+            if (tidePref === 'average') {
+                // Average all hourly values for the day
+                best = averageHourlyForDay(daily.time[i], hourlyM, hourlyW, b, cal);
+            } else {
+                best = summarizeHourlyForDay(daily.time[i], hourlyM, hourlyW, b, cal, tidePrefHours);
+            }
             const dom = daily.wave_direction_dominant[i];
             const pMax = daily.swell_wave_period_max[i] || daily.wave_period_max[i];
             const hd = pickDailyHeightMax(daily, i, cal);
@@ -2835,7 +2978,14 @@
 
             const modelSnapRounded = Math.round(surfBeforePeer * 100) / 100;
             const peerBlock = peerSectionHtml(dayStr, todayStrPeer, yesterdayStr, key, modelSnapRounded, peerCtx, units);
-            const tidePrefLabel = tidePref !== 'any' && tidePrefHours
+            const prefLabels = {
+                highest: 'peak of day', average: 'day avg', any: 'peak scan',
+                low_push: 'low on push', low: 'at low tide',
+                high_push: 'high on push', high: 'at high tide',
+                incoming: 'flood tide', outgoing: 'ebb tide'
+            };
+            const prefLabel = prefLabels[tidePref] || 'calibrated';
+            const tidePrefLabel = tidePref !== 'highest' && tidePref !== 'any' && tidePref !== 'average' && tidePrefHours
                 ? '<div class="stat-line" style="opacity:0.8;"><span>Reading window</span><span style="color:var(--tide);">' + ({low_push:'Low on push',low:'At low',high_push:'High on push',high:'At high',incoming:'Incoming (flood)',outgoing:'Outgoing (ebb)'}[tidePref]) + '</span></div>'
                 : '';
 
@@ -2847,7 +2997,7 @@
             row.dataset.windDir = windDirPeer != null ? String(windDirPeer) : '';
             row.innerHTML = `
                 <div class="date-col">${dateLab}${badgeHtml}</div>
-                <div class="surf-col">${formatSurfFt(surfFt, 1, units)}<span class="surf-sub">estimate (${cal.peerCorrectionEnabled ? 'calibrated · peers' : 'calibrated'})</span></div>
+                <div class="surf-col">${formatSurfFt(surfFt, 1, units)}<span class="surf-sub">${prefLabel}${cal.peerCorrectionEnabled ? ' · peers' : ''}</span></div>
                 <div class="energy-col">${best.dir != null ? degToCompass(best.dir) + ' @ peak' : degToCompass(dom)}<br/>${best.p != null ? best.p.toFixed(0) + 's' : (pMax != null ? pMax.toFixed(0) + 's' : '')}${energy != null ? '<br/><span style="opacity:0.85;font-size:0.68rem;">~' + energy + ' kJ</span>' : ''}</div>
                 <div class="chev">+</div>`;
 
@@ -2888,6 +3038,7 @@
                     </div>
                     <div class="tide-pills">${hiloPills}</div>
                     ${weatherCard}
+                    ${buildWeatherTimelineHtml(dayStr, hourlyW, units)}
                 </div>`;
 
             wrapper.appendChild(row);
@@ -2927,22 +3078,27 @@
     function initGuide() {
         const chapters = [
             {
-                title: '🌊 Welcome to Bamfield Surf',
+                title: '🤙 Welcome, Kook!',
                 content: `
-<h3>Your hyper-local west coast surf oracle</h3>
-<p>This app is built specifically for Bamfield-area surf breaks on the west coast of Vancouver Island. It combines real ocean model data, live buoy readings, and local knowledge to give you the most accurate surf forecast possible for these specific spots.</p>
-<h4>What makes this different?</h4>
+<span class="guide-surf-icon">🏄</span>
+<h3>You just paddled into the most technical surf forecast on the west coast of Vancouver Island.</h3>
+<p>And yes, we called you a kook. It's a term of endearment here. <strong>A kook is anyone learning, adapting, getting barrelled, or just showing up.</strong> This app is for you.</p>
+<p>Kookcast is built hyper-specifically for <strong>Bamfield-area breaks</strong> — we're not trying to forecast Tofino or half of BC. Just these gnarly local spots, with physics tuned to each beach's unique quirks.</p>
+<h4>What you get:</h4>
 <ul>
-<li><strong>Spot-specific physics:</strong> Each break has its own swell window, multiplier, and seabed characteristics tuned to how waves actually break there.</li>
-<li><strong>Real tide data:</strong> CHS (Canadian Hydrographic Service) tide predictions for Bamfield Station #08545 — the most accurate source for this inlet.</li>
-<li><strong>Live buoy reference:</strong> La Perouse Bank buoy (NDBC 46206) ~150km offshore gives you a real-time ocean pulse before swell arrives.</li>
-<li><strong>Community calibration:</strong> Locals can log what they actually saw in the water, and the algorithm learns to predict better over time.</li>
+<li>🌊 <strong>Spot-specific wave predictions</strong> — each break has its own swell window, multiplier, and seabed behaviour</li>
+<li>🌙 <strong>Real CHS tide data</strong> for Bamfield #08545 — not a generic tidal model</li>
+<li>📡 <strong>Live La Perouse Bank buoy</strong> — your offshore early warning system, ~150km west</li>
+<li>👥 <strong>Peer-calibrated predictions</strong> — locals who paddle out log what they see, and the algorithm learns</li>
+<li>⚙️ <strong>Full personal calibration</strong> — tune every break to match your eyes</li>
 </ul>
-<div class="tip-box"><strong>Passphrase access:</strong> This app is for Bamfield residents and community members. Share the passphrase with locals who surf here.</div>`
+<div class="tip-box"><strong>🔑 Passphrase:</strong> This app is for Bamfield residents and community surfers. Share the passphrase with locals, not the internet.</div>`
             },
             {
-                title: '📡 How Wave Prediction Works',
+                title: '📡 How Kookcast Predicts Waves',
                 content: `
+<span class="guide-surf-icon">🌊</span>
+<p>Here's where it gets nerdy. Strap in.</p>
 <h3>From open ocean to your local break</h3>
 <p>The forecast pipeline has three stages: raw model data → spot translation → local calibration.</p>
 <h4>Stage 1: Ocean models (Open-Meteo)</h4>
@@ -2961,8 +3117,9 @@
 <div class="warn-box"><strong>These are estimates, not guarantees.</strong> Wave forecasting is inherently uncertain — models miss local bathymetry, fog, kelp, and countless other factors. Always assess conditions on arrival.</div>`
             },
             {
-                title: '📊 Reading the Charts',
+                title: '📊 Chart School (No Kooks Allowed... jk)',
                 content: `
+<span class="guide-surf-icon">📈</span>
 <h3>Three charts, three layers of information</h3>
 <p>Expand any forecast day to see the charts. Hover over any chart to see exact values at that time.</p>
 <h4>Waves · 24h (purple/blue bar chart)</h4>
@@ -2986,17 +3143,19 @@
 <li><strong>Blue dashed line:</strong> Current time (on today's chart).</li>
 <li>The pills below show all HI/LO extrema with exact times.</li>
 </ul>
-<div class="tip-box"><strong>Pro tip:</strong> Use the "Best at" tide preference (top of page) to filter the daily forecast reading to your preferred tide window. Most west coast beach breaks work best on the low-tide push.</div>`
+<div class="tip-box"><strong>Pro tip:</strong> Use the tide preference dropdown (top of page) to filter the daily forecast reading to your preferred tide window. Most west coast beach breaks work best on the low-tide push.</div>`
             },
             {
-                title: '🌊 Tide Preference',
+                title: '🌊 Tide School',
                 content: `
 <h3>Customising your forecast window</h3>
-<p>The <strong>"Best at"</strong> dropdown in the top controls changes which part of the day the forecast is optimised for. Different breaks work best at different tide stages.</p>
+<p>The tide preference dropdown in the top controls changes which part of the day the forecast is optimised for. Different breaks work best at different tide stages.</p>
 <h4>Options explained:</h4>
 <ul>
-<li><strong>Best surf (any tide):</strong> Default. Scans all 24 hours and returns the peak estimated surf for the day, regardless of tide.</li>
-<li><strong>Low on the push ↓:</strong> Finds the 2-4 hours before each low tide. On most beach breaks, this is the magic window — the falling tide exposes the sandbar and the surf gets organised and powerful. Great for Keeha, Brady's, Tapaltos.</li>
+<li><strong>Highest surf (default):</strong> Scans all 24 hours and returns the peak estimated surf for the day, regardless of tide.</li>
+<li><strong>Day average:</strong> Averages all hourly surf values for a conservative daily reading.</li>
+<li><strong>Any tide (peak scan):</strong> Same as highest — unrestricted peak scan.</li>
+<li><strong>Low on the push ↓:</strong> Finds the 2-4 hours before each low tide. On most beach breaks, this is the magic window — the falling tide exposes the sandbar and the surf gets organised and powerful. Great for Keeha, Tapaltos.</li>
 <li><strong>At low tide:</strong> Only considers the ±1.5hr window around each low tide.</li>
 <li><strong>High on the push ↑:</strong> 2-4 hours before high tide. Some spots with kelp/reef prefer a bit of water on them.</li>
 <li><strong>At high tide:</strong> ±1.5hr around high tide.</li>
@@ -3007,8 +3166,9 @@
 <p>Your tide preference is saved in your browser — it persists between visits and applies to all breaks until you change it.</p>`
             },
             {
-                title: '⚙️ Calibration Panel',
+                title: '⚙️ Dial It In',
                 content: `
+<span class="guide-surf-icon">🔧</span>
 <h3>Tuning the model to what you see</h3>
 <p>Click the <strong>⌗ button</strong> (top right) to open the Calibration panel. These settings are stored in <em>your browser only</em> and only affect what you see.</p>
 <h4>Size scale (0.5× – 1.5×)</h4>
@@ -3027,10 +3187,10 @@
 <div class="warn-box"><strong>Important:</strong> After a major storm or significant sandbar shift, reset your calibration (use "Reset this spot") and start fresh. Old calibrations can become misleading after the beach changes.</div>`
             },
             {
-                title: '👥 Peer Review System',
+                title: '👥 The Kook Collective',
                 content: `
-<h3>Crowd-sourced calibration intelligence</h3>
-<p>The peer review system lets locals log what they actually saw in the water. Over time, this builds a dataset that makes the AI predictions smarter.</p>
+<span class="guide-surf-icon">🤝</span>
+<p>Every local who logs a surf check makes the model smarter for everyone. It's crowd-sourced calibration — and it's how Kookcast gets better over winter.</p>
 <h4>How to log a field check</h4>
 <p>Expand any forecast row for today or yesterday. At the bottom of the details panel, you'll see the <strong>"Field check"</strong> section. You can:</p>
 <ul>
@@ -3049,8 +3209,9 @@
 <div class="tip-box"><strong>Best practice:</strong> Log a check every time you surf here. Even "spot on" votes are valuable — they confirm the model is working. Over a winter season, you'll build a calibration dataset that rivals paid forecast services for this specific area.</div>`
             },
             {
-                title: '📍 The Breaks',
+                title: '📍 Know Your Breaks',
                 content: `
+<span class="guide-surf-icon">🗺️</span>
 <h3>Know your spots</h3>
 <p>Use the <strong>break selector</strong> in the top controls to switch between spots. The map updates to show swell and wind direction arrows for the selected break.</p>
 <h4>Pachena — Park side</h4>
