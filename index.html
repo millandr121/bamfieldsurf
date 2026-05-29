@@ -46,7 +46,7 @@
             margin: 0;
             line-height: 1.05;
         }
-        .tagline { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; max-width: 32rem; font-style: italic; text-align: right; align-self: flex-end; }
+        .tagline { font-size: 0.78rem; color: var(--muted); margin-top: 0.1rem; font-style: italic; text-align: center; letter-spacing: 0.01em; }
 
         .sr-only {
             position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
@@ -635,6 +635,7 @@
             animation: shakaWave 1.8s ease-in-out infinite;
             transform-origin: center bottom;
             -webkit-text-fill-color: initial;
+            opacity: 0.7;
         }
         @keyframes shakaWave {
             0%, 100% { transform: rotate(-15deg) scale(1); }
@@ -646,7 +647,7 @@
             position: absolute;
             top: -18px; left: -6px;
             z-index: 600;
-            font-size: 2.2rem; line-height: 1;
+            font-size: 1.6rem; line-height: 1;
             filter: drop-shadow(0 2px 6px rgba(0,0,0,0.2));
             animation: cornerBobbleMap 3s ease-in-out infinite;
             pointer-events: none;
@@ -655,7 +656,7 @@
             position: absolute;
             top: -16px; left: -6px;
             z-index: 10;
-            font-size: 1.8rem; line-height: 1;
+            font-size: 1.5rem; line-height: 1;
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.12));
             animation: cornerBobbleReport 2.5s ease-in-out infinite;
             pointer-events: none;
