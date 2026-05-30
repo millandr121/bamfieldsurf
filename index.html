@@ -627,18 +627,9 @@
             letter-spacing: -0.03em;
             margin: 0;
             line-height: 1.05;
-            background: linear-gradient(90deg, #f97316, #f59e0b, #22c55e, #0891b2, #2563eb, #a855f7, #f97316);
-            background-size: 300% auto;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: kookRainbow 9s ease-in-out infinite;
         }
-        @keyframes kookRainbow {
-            0%   { background-position: 0% center; }
-            30%  { background-position: 300% center; }
-            100% { background-position: 300% center; }
-        }
+        .kook-part { color: #2563eb; }
+        .cast-part { color: #f59e0b; }
         .kook-shaka {
             display: inline-block;
             font-size: 0.85em;
@@ -681,26 +672,6 @@
             50% { transform: rotate(-22.5deg) translateY(-4px); }
         }
 
-        .guide-wave {
-            font-size: 1.8rem;
-            display: inline-block;
-            animation: waveHand 1.2s ease-in-out infinite;
-            transform-origin: bottom right;
-        }
-        @keyframes waveHand {
-            0%, 100% { transform: rotate(-10deg); }
-            50% { transform: rotate(20deg); }
-        }
-        .guide-kook-badge {
-            display: inline-block;
-            background: linear-gradient(90deg, #f97316, #f59e0b, #22c55e, #0891b2, #2563eb, #a855f7);
-            background-size: 200% auto;
-            animation: kookRainbow 3s linear infinite;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 800;
-        }
         .guide-surf-icon {
             font-size: 2.5rem;
             display: block;
@@ -734,30 +705,25 @@
         }
         .guide-header {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 1.25rem 1.5rem 0.75rem;
+            padding: 1.1rem 1.5rem 1rem;
             border-bottom: 1px solid var(--border);
             flex-shrink: 0;
         }
-        .guide-header h2 { margin: 0; font-size: 1.2rem; }
+        .guide-header h2 { margin: 0; font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; }
         .guide-close {
             background: none; border: none; cursor: pointer; font-size: 1.1rem;
             color: var(--muted); padding: 0.25rem 0.5rem; border-radius: 6px;
             transition: color 0.15s, background 0.15s;
         }
         .guide-close:hover { color: var(--text); background: var(--surface2); }
-        .guide-nav {
-            display: flex; flex-wrap: wrap; gap: 0.35rem;
-            padding: 0.75rem 1.5rem 0;
-            flex-shrink: 0;
+        .guide-progress-bar {
+            height: 3px; background: var(--border); flex-shrink: 0;
         }
-        .guide-nav-btn {
-            font-family: inherit; font-size: 0.72rem; font-weight: 600;
-            padding: 0.3rem 0.65rem; border-radius: 20px; cursor: pointer;
-            border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
-            transition: all 0.15s;
+        .guide-progress-fill {
+            height: 100%; background: var(--accent);
+            transition: width 0.3s ease;
+            width: 0%;
         }
-        .guide-nav-btn:hover { border-color: var(--accent); color: var(--accent); }
-        .guide-nav-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
         .guide-body {
             flex: 1; overflow-y: auto;
             padding: 1.25rem 1.5rem;
@@ -821,7 +787,7 @@
         .guide-btn:hover { border-color: var(--accent); color: var(--accent); }
         .guide-btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
         .guide-btn.primary:hover { filter: brightness(1.08); }
-        .guide-page-indicator { font-size: 0.75rem; color: var(--muted); }
+        .guide-page-indicator { font-size: 0.72rem; color: var(--muted); max-width: 140px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         /* Chart loading state */
         .chart-loading {
@@ -884,9 +850,57 @@
         .wave-bar-container, .tide-container, .buoy-chart-container {
             cursor: crosshair;
         }
+        /* Splash screen */
+        #splash {
+            position: fixed; inset: 0; z-index: 99999;
+            background: #0f172a;
+            display: flex; align-items: center; justify-content: center;
+            flex-direction: column;
+            transition: opacity 0.4s ease;
+        }
+        #splash.fade-out { opacity: 0; pointer-events: none; }
+        #splash.gone { display: none; }
+        .splash-shaka {
+            font-size: 6rem;
+            display: block;
+            transform-origin: center center;
+            animation: splashShake 1.1s ease-in-out;
+        }
+        .splash-shaka.zoom-in {
+            animation: splashZoom 0.45s ease-in forwards;
+        }
+        @keyframes splashShake {
+            0%   { transform: rotate(-20deg) scale(1); }
+            15%  { transform: rotate(22deg) scale(1.12); }
+            30%  { transform: rotate(-18deg) scale(1); }
+            45%  { transform: rotate(20deg) scale(1.1); }
+            60%  { transform: rotate(-14deg) scale(1.02); }
+            75%  { transform: rotate(16deg) scale(1.07); }
+            90%  { transform: rotate(-8deg) scale(1); }
+            100% { transform: rotate(0deg) scale(1); }
+        }
+        @keyframes splashZoom {
+            0%   { transform: scale(1); opacity: 1; }
+            55%  { transform: scale(14); opacity: 1; }
+            100% { transform: scale(24); opacity: 0; }
+        }
+        .splash-wordmark {
+            margin-top: 1.25rem;
+            font-size: 1.5rem;
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            opacity: 0;
+            animation: splashFadeWord 0.4s ease 0.3s forwards;
+        }
+        @keyframes splashFadeWord { to { opacity: 1; } }
     </style>
 </head>
 <body>
+
+<div id="splash" aria-hidden="true">
+    <span class="splash-shaka" id="splash-shaka">🤙</span>
+    <div class="splash-wordmark"><span style="color:#2563eb">KOOK</span><span style="color:#f59e0b">CAST</span></div>
+</div>
 
 <div id="gate" class="gate-overlay" role="dialog" aria-modal="true" aria-labelledby="gate-title">
     <div class="gate-card">
@@ -902,7 +916,7 @@
     <header>
         <div>
             <div style="display:inline-block;position:relative;">
-                <h1 class="kookcast-title" style="display:inline-flex;align-items:center;">KOOKCAST<span class="kook-shaka" style="margin-left:-0.05em;margin-right:-0.1em;">🤙</span></h1>
+                <h1 class="kookcast-title" style="display:inline-flex;align-items:center;"><span class="kook-part">KOOK</span><span class="cast-part">CAST</span><span class="kook-shaka" style="margin-left:-0.05em;margin-right:-0.1em;">🤙</span></h1>
                 <p class="tagline" style="text-align:right;margin-top:0.05rem;">Bamfield's west coast swell oracle.</p>
             </div>
         </div>
@@ -1025,13 +1039,13 @@
     <div id="guide-overlay" class="guide-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
         <div class="guide-card">
             <div class="guide-header">
-                <h2 id="guide-title"><span class="guide-wave">🏄</span> <span class="guide-kook-badge">KOOKCAST</span> Guide</h2>
+                <h2 id="guide-title"><span class="kook-part">KOOK</span><span class="cast-part">CAST</span> <span style="font-weight:400;color:var(--muted);">Guide</span></h2>
                 <button type="button" id="guide-close" class="guide-close" aria-label="Close guide">✕</button>
             </div>
-            <div class="guide-nav" id="guide-nav"></div>
+            <div class="guide-progress-bar"><div class="guide-progress-fill" id="guide-progress-fill"></div></div>
             <div class="guide-body" id="guide-body"></div>
             <div class="guide-footer">
-                <button type="button" id="guide-prev" class="guide-btn">← Prev</button>
+                <button type="button" id="guide-prev" class="guide-btn">← Back</button>
                 <span id="guide-page-indicator" class="guide-page-indicator"></span>
                 <button type="button" id="guide-next" class="guide-btn primary">Next →</button>
             </div>
@@ -1370,6 +1384,22 @@
         },
     };
     const LA_PEROUSE_BUOY = '46206';
+
+    // Splash screen — shaka shakes, then rockets into camera
+    (function() {
+        const shaka = document.getElementById('splash-shaka');
+        const splash = document.getElementById('splash');
+        if (!shaka || !splash) return;
+        // After shake finishes (~1.15s), trigger zoom
+        setTimeout(function() {
+            shaka.classList.add('zoom-in');
+            // Fade the overlay out slightly after zoom starts
+            setTimeout(function() {
+                splash.classList.add('fade-out');
+                setTimeout(function() { splash.classList.add('gone'); }, 420);
+            }, 200);
+        }, 1150);
+    })();
 
     let map;
     let mapMarkers = {};
@@ -3672,24 +3702,16 @@
             $('guide-page-indicator').textContent = (currentChapter + 1) + ' / ' + chapters.length;
             $('guide-prev').disabled = currentChapter === 0;
             $('guide-next').textContent = currentChapter === chapters.length - 1 ? 'Done ✓' : 'Next →';
-            document.querySelectorAll('.guide-nav-btn').forEach((btn, i) => {
-                btn.classList.toggle('active', i === currentChapter);
-            });
+            // Progress bar
+            const fill = $('guide-progress-fill');
+            if (fill) fill.style.width = ((currentChapter / (chapters.length - 1)) * 100) + '%';
+            // Chapter label as indicator
+            $('guide-page-indicator').textContent = ch.navLabel || ch.title;
             // Wire chapter-grid tile clicks on overview page
             $('guide-body').querySelectorAll('.guide-chapter-tile').forEach(tile => {
                 tile.onclick = () => showChapter(parseInt(tile.dataset.chapter, 10));
             });
         }
-
-        const nav = $('guide-nav');
-        chapters.forEach((ch, i) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'guide-nav-btn' + (i === 0 ? ' active' : '');
-            btn.textContent = ch.navLabel || ch.title;
-            btn.onclick = () => showChapter(i);
-            nav.appendChild(btn);
-        });
 
         $('guide-prev').onclick = () => showChapter(currentChapter - 1);
         $('guide-next').onclick = () => {
@@ -3717,14 +3739,6 @@
         };
 
         showChapter(0);
-
-        // Randomise rainbow gradient stop position each page load
-        try {
-            const titleEl = document.querySelector('.kookcast-title');
-            if (titleEl) {
-                titleEl.style.animationDelay = -(Math.random() * 9).toFixed(2) + 's';
-            }
-        } catch(_) {}
 
         // Show guide on first visit
         try {
