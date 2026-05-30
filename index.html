@@ -464,6 +464,15 @@
         }
         .peer-custom input.peer-observed-input:focus { outline: none; border-color: var(--accent); }
         .peer-log { margin-top: 0.55rem; font-size: 0.72rem; color: var(--muted); border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.45rem; }
+        .drift-warning {
+            background: rgba(249,115,22,0.1);
+            border-left: 3px solid var(--swell);
+            border-radius: 0 6px 6px 0;
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.65rem;
+            font-size: 0.75rem;
+            line-height: 1.5;
+        }
         .peer-algo-note { margin-top: 0.35rem; font-size: 0.68rem; color: #9ca3af; line-height: 1.35; }
 
         .error-banner {
@@ -1372,6 +1381,10 @@
     /** Latest merged remote rows per spot (filled when PEER_API_BASE is set). */
     let peerRemoteEntries = {};
     let syncCalibrationPanel = function () {};
+    /** Cached hourly data for current spot — used by peer vote snapshot at log time. */
+    let _liveHourlyM = null;
+    let _liveHourlyW = null;
+    let _liveTideWlp = null;
 
     const $ = (id) => document.getElementById(id);
 
@@ -1434,6 +1447,22 @@
             ts: r.ts || 0,
             viewerId: r.viewerId || '',
             source: 'remote',
+            // hourly snapshot fields
+            logHour: r.logHour != null ? Number(r.logHour) : null,
+            logTimeIso: r.logTimeIso || null,
+            hourSwellHtM: r.hourSwellHtM != null ? Number(r.hourSwellHtM) : null,
+            hourWaveHtM: r.hourWaveHtM != null ? Number(r.hourWaveHtM) : null,
+            hourPeriodS: r.hourPeriodS != null ? Number(r.hourPeriodS) : null,
+            hourSwellDirDeg: r.hourSwellDirDeg != null ? Number(r.hourSwellDirDeg) : null,
+            hourWindDirDeg: r.hourWindDirDeg != null ? Number(r.hourWindDirDeg) : null,
+            hourWindSpeedKmh: r.hourWindSpeedKmh != null ? Number(r.hourWindSpeedKmh) : null,
+            hourWindGustKmh: r.hourWindGustKmh != null ? Number(r.hourWindGustKmh) : null,
+            hourTideM: r.hourTideM != null ? Number(r.hourTideM) : null,
+            tidePhase: r.tidePhase || null,
+            hourTempC: r.hourTempC != null ? Number(r.hourTempC) : null,
+            hourPrecipMm: r.hourPrecipMm != null ? Number(r.hourPrecipMm) : null,
+            hourWeatherCode: r.hourWeatherCode != null ? Number(r.hourWeatherCode) : null,
+            schemaVersion: r.schemaVersion || 1,
         };
     }
 
@@ -1471,12 +1500,102 @@
     }
 
     /**
+     * Detects if the sandbar has likely shifted by analysing systematic residual drift.
+     * Returns { shifted, drift, confidence, recentMean, oldMean, recentCount, oldCount, recommendation }
+     *
+     * Logic:
+     * - Splits entries into "recent" (last 21 days) and "baseline" (22–90 days ago)
+     * - Computes mean residual for each window
+     * - "Drift" = recentMean - baselineMean (positive = model now under-predicting)
+     * - High energy storm events (energyKj > 400) in recent window flag a storm-reset event
+     * - confidence increases with sample count and drift magnitude
+     */
+    function detectSandbarDrift(spotKey) {
+        const entries = flattenPeerReviews(spotKey);
+        const now = Date.now();
+        const DAY = 86400000;
+
+        const recent = entries.filter(e => e.ts && (now - e.ts) <= 21 * DAY);
+        const baseline = entries.filter(e => e.ts && (now - e.ts) > 21 * DAY && (now - e.ts) <= 90 * DAY);
+
+        if (recent.length < 4 || baseline.length < 4) {
+            return { shifted: false, confidence: 0, recentCount: recent.length, oldCount: baseline.length };
+        }
+
+        const mean = arr => arr.reduce((s, e) => s + e.residualFt, 0) / arr.length;
+        const recentMean = mean(recent);
+        const oldMean = mean(baseline);
+        const drift = recentMean - oldMean;
+
+        // Variance of recent residuals
+        const variance = recent.reduce((s, e) => s + Math.pow(e.residualFt - recentMean, 2), 0) / recent.length;
+        const stddev = Math.sqrt(variance);
+
+        // Confidence: higher with more samples, larger drift relative to stddev
+        const sampleFactor = Math.min(1, recent.length / 8) * Math.min(1, baseline.length / 8);
+        const driftSig = stddev > 0 ? Math.abs(drift) / stddev : 0;
+        const confidence = Math.min(1, driftSig * 0.4 * sampleFactor);
+
+        // Storm indicator: any recent entry with very high energy
+        const hasRecentStorm = recent.some(e => e.energyKj != null && e.energyKj > 450);
+
+        const shifted = Math.abs(drift) > 0.7 && confidence > 0.45;
+        const recommendation = shifted
+            ? (hasRecentStorm
+                ? 'Recent storm may have reshaped sandbars. Archive old logs and recalibrate from current conditions.'
+                : 'Residuals have drifted significantly. Sandbar shift likely. Consider archiving old logs.')
+            : null;
+
+        return { shifted, drift, confidence, recentMean, oldMean, recentCount: recent.length, oldCount: baseline.length, stddev, hasRecentStorm, recommendation };
+    }
+
+    /**
+     * Moves entries older than cutoffDays to an archive key in localStorage.
+     * Active log retains only entries within cutoffDays.
+     */
+    function archiveOldPeerLogs(spotKey, cutoffDays) {
+        cutoffDays = cutoffDays || 30;
+        const cutoff = Date.now() - cutoffDays * 86400000;
+        try {
+            const log = loadPeerRaw();
+            const archive = JSON.parse(localStorage.getItem(PEER_LOG_STORAGE + '_archive') || '{}');
+            if (!log.reviews?.[spotKey]) return;
+            const block = log.reviews[spotKey];
+            const archBlock = archive[spotKey] || {};
+            let moved = 0;
+            Object.keys(block).forEach(dayStr => {
+                const arr = Array.isArray(block[dayStr]) ? block[dayStr] : [block[dayStr]];
+                const keep = [], arch = [];
+                arr.forEach(e => {
+                    if (e && e.ts && e.ts < cutoff) arch.push(e);
+                    else keep.push(e);
+                });
+                if (arch.length) {
+                    archBlock[dayStr] = (archBlock[dayStr] || []).concat(arch);
+                    moved += arch.length;
+                }
+                block[dayStr] = keep.length ? keep : undefined;
+                if (!block[dayStr]) delete block[dayStr];
+            });
+            log.reviews[spotKey] = block;
+            archive[spotKey] = archBlock;
+            savePeerRaw(log);
+            localStorage.setItem(PEER_LOG_STORAGE + '_archive', JSON.stringify(archive));
+            return moved;
+        } catch (_) { return 0; }
+    }
+
+    /**
      * Condition-matched peer residual for a forecast row.
      * Votes weighted by recency + similarity: model height, period, energy, swell direction,
      * wind vs swell angle (offshore/cross/on), and wind speed.
      */
     function predictPeerCorrection(spotKey, ctx, halfLifeDays) {
         const hl = halfLifeDays == null ? 56 : Number(halfLifeDays);
+        // Adaptive half-life: shorten decay if sandbar drift detected (weights recent data more)
+        let effectiveHl = hl;
+        const driftInfo = detectSandbarDrift(spotKey);
+        if (driftInfo.shifted) effectiveHl = Math.min(hl, 21);
         const modelFt = Math.max(0, Number(ctx?.modelFt) || 0);
         const periodS = ctx?.periodS != null ? Number(ctx.periodS) : null;
         const energyKj = ctx?.energyKj != null ? Number(ctx.energyKj) : null;
@@ -1499,7 +1618,7 @@
 
         flat.forEach((r) => {
             const ageDays = (Date.now() - (r.ts || 0)) / 86400000;
-            const wTime = Math.pow(2, -ageDays / hl);
+            const wTime = Math.pow(2, -ageDays / effectiveHl);
 
             const rm = Math.max(0, Number(r.modelFtSnapshot ?? r.modelFt) || modelFt);
             const dM = Math.abs(Math.log(rm + 0.5) - Math.log(modelFt + 0.5));
@@ -1588,6 +1707,67 @@
         } catch (_) {}
     }
 
+    function buildHourlySnapshot() {
+        const snap = {};
+        const nowMs = Date.now();
+        // Pacific hour index from hourlyM.time (ISO strings like "2025-06-01T00:00")
+        if (_liveHourlyM && _liveHourlyM.time) {
+            let bestIdx = -1, bestDiff = Infinity;
+            _liveHourlyM.time.forEach((t, i) => {
+                const tMs = new Date(t).getTime();
+                const diff = Math.abs(tMs - nowMs);
+                if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+            });
+            if (bestIdx >= 0) {
+                const hm = _liveHourlyM;
+                snap.hourSwellHtM = hm.swell_wave_height?.[bestIdx] ?? hm.wave_height?.[bestIdx] ?? null;
+                snap.hourWaveHtM  = hm.wave_height?.[bestIdx] ?? null;
+                snap.hourPeriodS  = hm.swell_wave_period?.[bestIdx] ?? hm.wave_period?.[bestIdx] ?? null;
+                snap.hourSwellDirDeg = hm.swell_wave_direction?.[bestIdx] ?? hm.wave_direction?.[bestIdx] ?? null;
+                snap.hourWindDirDeg  = hm.wind_direction_10m?.[bestIdx] ?? null;
+                snap.hourWindSpeedKmh = hm.wind_speed_10m?.[bestIdx] ?? null;
+            }
+        }
+        if (_liveHourlyW && _liveHourlyW.time) {
+            let bestIdx = -1, bestDiff = Infinity;
+            _liveHourlyW.time.forEach((t, i) => {
+                const tMs = new Date(t).getTime();
+                const diff = Math.abs(tMs - nowMs);
+                if (diff < bestDiff) { bestDiff = diff; bestIdx = i; }
+            });
+            if (bestIdx >= 0) {
+                const hw = _liveHourlyW;
+                if (snap.hourWindDirDeg == null) snap.hourWindDirDeg = hw.wind_direction_10m?.[bestIdx] ?? null;
+                if (snap.hourWindSpeedKmh == null) snap.hourWindSpeedKmh = hw.wind_speed_10m?.[bestIdx] ?? null;
+                snap.hourWindGustKmh = hw.wind_gusts_10m?.[bestIdx] ?? null;
+                snap.hourTempC = hw.temperature_2m?.[bestIdx] ?? null;
+                snap.hourPrecipMm = hw.precipitation?.[bestIdx] ?? null;
+                snap.hourWeatherCode = hw.weather_code?.[bestIdx] ?? null;
+            }
+        }
+        // Tide height at current time (linear interpolation)
+        if (_liveTideWlp && _liveTideWlp.length) {
+            const times = _liveTideWlp.map(p => new Date(p.eventDate).getTime());
+            const vals  = _liveTideWlp.map(p => p.value);
+            let lo = 0;
+            for (let i = 0; i < times.length - 1; i++) {
+                if (times[i] <= nowMs && nowMs <= times[i + 1]) { lo = i; break; }
+            }
+            const t0 = times[lo], t1 = times[lo + 1] || times[lo];
+            const frac = t1 > t0 ? (nowMs - t0) / (t1 - t0) : 0;
+            snap.hourTideM = vals[lo] + frac * ((vals[lo + 1] ?? vals[lo]) - vals[lo]);
+            // tide phase: rising or falling
+            const ahead = vals[Math.min(lo + 1, vals.length - 1)];
+            snap.tidePhase = ahead > vals[lo] ? 'rising' : 'falling';
+        }
+        // local time context
+        const now = new Date(nowMs);
+        snap.logHour = parseInt(now.toLocaleString('en-CA', { hour: 'numeric', hour12: false, timeZone: 'America/Vancouver' }), 10);
+        snap.logTimeIso = now.toISOString();
+        snap.schemaVersion = 2;
+        return snap;
+    }
+
     function appendPeerReview(spotKey, dayYmd, modelFt, residualFt, ctx) {
         const log = loadPeerRaw();
         if (!log.reviews) log.reviews = {};
@@ -1596,6 +1776,7 @@
         const next = Array.isArray(prior) ? prior.concat() : prior ? [prior] : [];
         const observedFt = ctx && ctx.observedFt != null ? Number(ctx.observedFt) : null;
         const entry = {
+            ...buildHourlySnapshot(),
             residualFt,
             modelFtSnapshot: modelFt,
             periodS: ctx && ctx.periodS != null ? Number(ctx.periodS) : null,
@@ -1611,14 +1792,7 @@
         next.push(entry);
         log.reviews[spotKey][dayYmd] = next;
         savePeerRaw(log);
-        pushPeerReviewRemote({
-            spotKey, dayYmd, modelFt, residualFt,
-            periodS: entry.periodS, energyKj: entry.energyKj,
-            swellDirDeg: entry.swellDirDeg, windDirDeg: entry.windDirDeg,
-            windSpeedKmh: entry.windSpeedKmh, windSwellAngleDeg: entry.windSwellAngleDeg,
-            observedFt: entry.observedFt,
-            viewerId: entry.viewerId, ts: entry.ts,
-        });
+        pushPeerReviewRemote(Object.assign({ spotKey, dayYmd }, entry));
     }
 
     function peerStripDataAttrs(peerCtx) {
@@ -1666,8 +1840,20 @@
                 + est + '</strong>).';
 
         const obs = observedInputAttrs(u);
+        const drift = detectSandbarDrift(spotKey);
+        const driftWarning = drift.shifted
+            ? '<div class="drift-warning">'
+                + '<strong>Sandbar shift detected</strong> — recent field reports diverge from baseline by '
+                + (drift.drift > 0 ? '+' : '') + drift.drift.toFixed(1) + ' ft '
+                + '(confidence ' + Math.round(drift.confidence * 100) + '%). '
+                + (drift.hasRecentStorm ? 'Recent storm event flagged. ' : '')
+                + 'Algorithm is weighting newer logs more heavily. '
+                + '<button type="button" class="peer-btn drift-archive-btn" data-drift-spot="' + spotKey + '">Archive old logs</button>'
+                + '</div>'
+            : '';
         return (
             '<div class="peer-strip"' + peerStripDataAttrs(peerCtx) + '>'
+                + driftWarning
                 + '<div class="peer-title">Field check · today &amp; yesterday</div>'
                 + '<div class="peer-sub">' + ctxLine + '</div>'
                 + '<div class="peer-buttons">'
@@ -1740,6 +1926,15 @@
         if (!root || root.dataset.peerDelegation === '1') return;
         root.dataset.peerDelegation = '1';
         root.addEventListener('click', (ev) => {
+            const archiveBtn = ev.target.closest('.drift-archive-btn');
+            if (archiveBtn) {
+                const dSpot = archiveBtn.getAttribute('data-drift-spot');
+                if (dSpot) {
+                    const moved = archiveOldPeerLogs(dSpot, 30);
+                    archiveBtn.closest('.drift-warning').innerHTML = '<em>Archived ' + (moved || 0) + ' old entries. Recalibrating from recent data.</em>';
+                }
+                return;
+            }
             const t = ev.target.closest('[data-peer-action]');
             if (!t || !root.contains(t)) return;
             ev.stopPropagation();
@@ -3057,6 +3252,9 @@
         const daily = marineData.daily;
         const hourlyM = marineData.hourly;
         const hourlyW = weatherData && weatherData.hourly;
+        _liveHourlyM = marineData.hourly;
+        _liveHourlyW = weatherData && weatherData.hourly;
+        _liveTideWlp = tideWlp;
         const dailyW = weatherData && weatherData.daily;
         wrapper.innerHTML = '';
 
