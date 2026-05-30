@@ -853,13 +853,15 @@
         /* Splash screen */
         #splash {
             position: fixed; inset: 0; z-index: 99999;
-            background: #0f172a;
-            display: flex; align-items: center; justify-content: center;
+            background: #fff;
+            display: none;
+            align-items: center; justify-content: center;
             flex-direction: column;
             transition: opacity 0.4s ease;
         }
+        #splash.active { display: flex; }
         #splash.fade-out { opacity: 0; pointer-events: none; }
-        #splash.gone { display: none; }
+        #splash.gone { display: none !important; }
         .splash-shaka {
             font-size: 6rem;
             display: block;
@@ -893,6 +895,7 @@
             animation: splashFadeWord 0.4s ease 0.3s forwards;
         }
         @keyframes splashFadeWord { to { opacity: 1; } }
+        .splash-wordmark span { mix-blend-mode: normal; }
     </style>
 </head>
 <body>
@@ -1385,21 +1388,28 @@
     };
     const LA_PEROUSE_BUOY = '46206';
 
-    // Splash screen — shaka shakes, then rockets into camera
-    (function() {
+    // Splash screen — shown after login, shaka shakes then rockets into camera
+    function runSplash(cb) {
         const shaka = document.getElementById('splash-shaka');
         const splash = document.getElementById('splash');
-        if (!shaka || !splash) return;
-        // After shake finishes (~1.15s), trigger zoom
+        if (!shaka || !splash) { if (cb) cb(); return; }
+        splash.classList.remove('gone', 'fade-out');
+        // Reset shaka animation
+        shaka.classList.remove('zoom-in');
+        void shaka.offsetWidth; // reflow to restart animation
+        splash.classList.add('active');
         setTimeout(function() {
             shaka.classList.add('zoom-in');
-            // Fade the overlay out slightly after zoom starts
             setTimeout(function() {
                 splash.classList.add('fade-out');
-                setTimeout(function() { splash.classList.add('gone'); }, 420);
+                setTimeout(function() {
+                    splash.classList.add('gone');
+                    splash.classList.remove('active');
+                    if (cb) cb();
+                }, 420);
             }, 200);
         }, 1150);
-    })();
+    }
 
     let map;
     let mapMarkers = {};
@@ -3072,8 +3082,10 @@
             if (v === LOCAL_PASSPHRASE) {
                 sessionStorage.setItem(STORAGE_KEY, '1');
                 gate.classList.add('hidden');
-                main.style.display = 'block';
-                initApp();
+                runSplash(function() {
+                    main.style.display = 'block';
+                    initApp();
+                });
             } else {
                 $('gate-err').textContent = 'That didn\u2019t match. Ask a local for the current phrase.';
             }
